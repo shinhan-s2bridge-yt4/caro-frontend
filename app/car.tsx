@@ -310,8 +310,6 @@ export default function CarScreen() {
           style={{
             width: '100%',
             backgroundColor: colors.coolNeutral[10],
-            paddingTop: 12,
-            paddingBottom: 20,
             gap: 18,
           }}
         >
@@ -374,7 +372,7 @@ export default function CarScreen() {
               </View>
 
               {/* 날짜 검색 */}
-              <View style={{ paddingHorizontal: 20 }}>
+              <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
                 <Pressable
                   onPress={openDatePicker}
                   accessibilityRole="button"
