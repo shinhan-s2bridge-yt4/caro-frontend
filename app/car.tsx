@@ -1,61 +1,694 @@
-import { View, Text } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, typography } from '@/theme';
+import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
+import { MainButton } from '@/components/common/Button/MainButton';
+
+import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
+import SearchIcon from '../assets/icons/search.svg';
+import GCarIcon from '../assets/icons/gcar.svg';
+import XIcon from '../assets/icons/x_icon.svg';
+
+const SCREEN_MAX_WIDTH = 375;
+const TAG_MIN_WIDTH = 44;
+const DATE_WHEEL_ITEM_HEIGHT = 44;
+const DATE_WHEEL_HEIGHT = 220;
+const DATE_WHEEL_PADDING = (DATE_WHEEL_HEIGHT - DATE_WHEEL_ITEM_HEIGHT) / 2;
+const DATE_PICKER_YEARS: number[] = [2024, 2025, 2026, 2027, 2028];
+const DATE_PICKER_MONTHS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
+
+type DriveRecord = {
+  id: string;
+  dateLabel: string; // e.g. "2026. 02. 04 (수)"
+  earnedCoinLabel: string; // e.g. "+ 153"
+  start: { time: string; address: string };
+  end: { time: string; address: string };
+  distanceKmLabel: string; // e.g. "15.3 km"
+  carModel: string; // e.g. "렉서스 ES300h"
+};
+
+const MOCK_SUMMARY = {
+  totalDistanceLabel: '163.0 km',
+  totalPointLabel: '1,605P',
+};
+
+const MOCK_RECORDS: DriveRecord[] = [
+  {
+    id: '1',
+    dateLabel: '2026. 02. 04 (수)',
+    earnedCoinLabel: '+ 153',
+    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
+    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
+    distanceKmLabel: '15.3 km',
+    carModel: '렉서스 ES300h',
+  },
+  {
+    id: '2',
+    dateLabel: '2026. 02. 04 (수)',
+    earnedCoinLabel: '+ 153',
+    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
+    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
+    distanceKmLabel: '15.3 km',
+    carModel: '렉서스 ES300h',
+  },
+  {
+    id: '3',
+    dateLabel: '2026. 02. 04 (수)',
+    earnedCoinLabel: '+ 153',
+    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
+    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
+    distanceKmLabel: '15.3 km',
+    carModel: '렉서스 ES300h',
+  },
+];
+
+function CoinCMark({ size = 14 }: { size?: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: colors.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      accessibilityLabel="coin-c-mark"
+    >
+      <Text
+        style={{
+          fontFamily: typography.fontFamily.pretendard,
+          fontSize: Math.round(size * 0.72),
+          fontWeight: '800',
+          color: colors.coolNeutral[10],
+          lineHeight: Math.round(size * 0.78),
+          textAlign: 'center',
+          includeFontPadding: false,
+        }}
+      >
+        C
+      </Text>
+    </View>
+  );
+}
+
+function StatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', gap: 8 }}>
+      <Text
+        style={{
+          fontFamily: typography.fontFamily.pretendard,
+          ...typography.styles.body3Medium,
+          color: colors.coolNeutral[10],
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontFamily: typography.fontFamily.pretendard,
+          ...typography.styles.h2Semibold,
+          color: colors.coolNeutral[10],
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function Tag({ label }: { label: '출발' | '도착' }) {
+  return (
+    <View
+      style={{
+        height: 24,
+        minWidth: TAG_MIN_WIDTH,
+        paddingHorizontal: 8,
+        borderRadius: 999,
+        backgroundColor: colors.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: typography.fontFamily.pretendard,
+          ...typography.styles.captionSemibold,
+          color: colors.coolNeutral[10],
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function DriveRecordCard({ item }: { item: DriveRecord }) {
+  return (
+    <View
+      style={{
+        width: '100%',
+        backgroundColor: colors.coolNeutral[10],
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: 20,
+        paddingVertical: 20,
+        gap: 12,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Text
+          style={{
+            fontFamily: typography.fontFamily.pretendard,
+            ...typography.styles.body2Semibold,
+            color: colors.coolNeutral[80],
+          }}
+        >
+          {item.dateLabel}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body2Bold,
+              color: colors.primary[50],
+            }}
+          >
+            {item.earnedCoinLabel}
+          </Text>
+          <CoinCMark size={14} />
+        </View>
+      </View>
+
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+          <Tag label="출발" />
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionMedium,
+                color: colors.coolNeutral[60],
+              }}
+            >
+              {item.start.time}
+            </Text>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{
+                flex: 1,
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionMedium,
+                color: colors.coolNeutral[40],
+              }}
+            >
+              {item.start.address}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+          <Tag label="도착" />
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionMedium,
+                color: colors.coolNeutral[60],
+              }}
+            >
+              {item.end.time}
+            </Text>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{
+                flex: 1,
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionMedium,
+                color: colors.coolNeutral[40],
+              }}
+            >
+              {item.end.address}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        {/* 출발/도착 태그 자리만큼 앞 공간 */}
+        <View style={{ width: TAG_MIN_WIDTH, height: 24 }} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.captionSemibold,
+              color: colors.coolNeutral[40],
+            }}
+          >
+            {item.distanceKmLabel}
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.captionSemibold,
+              color: colors.coolNeutral[40],
+            }}
+          >
+            |
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <GCarIcon width={16} height={16} />
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionSemibold,
+                color: colors.coolNeutral[40],
+              }}
+            >
+              {item.carModel}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function CarScreen() {
   const router = useRouter();
+  const [dateQuery, setDateQuery] = useState<string>('');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
+  const [pickedYear, setPickedYear] = useState<number>(2026);
+  const [pickedMonth, setPickedMonth] = useState<number>(2);
+
+  const yearListRef = useRef<FlatList<number> | null>(null);
+  const monthListRef = useRef<FlatList<number> | null>(null);
+  const yearIdxRef = useRef<number>(Math.max(0, DATE_PICKER_YEARS.indexOf(pickedYear)));
+  const monthIdxRef = useRef<number>(Math.max(0, DATE_PICKER_MONTHS.indexOf(pickedMonth)));
+
+  const filteredRecords = useMemo(() => {
+    const q = dateQuery.trim();
+    if (!q) return MOCK_RECORDS;
+    return MOCK_RECORDS.filter((r) => r.dateLabel.includes(q));
+  }, [dateQuery]);
+
+  const openDatePicker = () => setIsDatePickerOpen(true);
+  const closeDatePicker = () => setIsDatePickerOpen(false);
+  const applyDatePicker = () => {
+    setDateQuery(`${pickedYear}. ${String(pickedMonth).padStart(2, '0')}`);
+    closeDatePicker();
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 20,
-          gap: 12,
-        }}
-      >
-        <Text
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
+      <ScrollView style={{ flex: 1, width: '100%' }} contentContainerStyle={{ alignItems: 'stretch' }}>
+        <View
           style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body1Bold,
-            color: colors.coolNeutral[90],
+            width: '100%',
+            backgroundColor: colors.coolNeutral[10],
+            paddingTop: 12,
+            paddingBottom: 20,
+            gap: 18,
           }}
         >
-          운행기록
-        </Text>
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body2Medium,
-            color: colors.coolNeutral[50],
-            textAlign: 'center',
-          }}
-        >
-          NavigationBar 라우팅 테스트용 페이지입니다.
-        </Text>
-      </View>
+          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center', gap: 20 }}>
+            {/* 헤더 */}
+            <View
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Pressable
+                onPress={() => router.back()}
+                style={{ width: 24, height: 24, justifyContent: 'center' }}
+                accessibilityRole="button"
+                accessibilityLabel="back"
+              >
+                <ArrowLeftIcon width={24} height={24} />
+              </Pressable>
 
-      <NavigationBar
-        active="car"
-        showBorder
-        onPress={(tab) => {
-          const to =
-            tab === 'home'
-              ? '/home'
-              : tab === 'car'
-                ? '/car'
-                : tab === 'coin'
-                  ? '/coin'
-                  : tab === 'store'
-                    ? '/store'
-                    : '/user';
-          router.push(to);
-        }}
-      />
-    </View>
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body1Semibold,
+                  color: colors.coolNeutral[90],
+                }}
+              >
+                운행기록
+              </Text>
+            </View>
+
+            <View style={{ gap: 24 }}>
+              {/* 요약 카드 */}
+              <View style={{ paddingHorizontal: 20 }}>
+                <View
+                  style={{
+                    width: '100%',
+                    borderRadius: borderRadius.lg,
+                    backgroundColor: colors.primary[50],
+                    padding: 20,
+                  }}
+                >
+                  {/* 텍스트(2개) + 구분선만 묶는 컨텐츠 View */}
+                  <View
+                    style={{
+                      width: '100%',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 26,
+                    }}
+                  >
+                    <StatCell label="총 운행거리" value={MOCK_SUMMARY.totalDistanceLabel} />
+                    <View style={{ width: 1, height: 56, backgroundColor: 'rgba(255,255,255,0.4)' }} />
+                    <StatCell label="총 적립 포인트" value={MOCK_SUMMARY.totalPointLabel} />
+                  </View>
+                </View>
+              </View>
+
+              {/* 날짜 검색 */}
+              <View style={{ paddingHorizontal: 20 }}>
+                <Pressable
+                  onPress={openDatePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="open-date-picker"
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    borderRadius: borderRadius.md,
+                    backgroundColor: colors.background.default,
+                    paddingHorizontal: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.body3Semibold,
+                      color: dateQuery ? colors.coolNeutral[90] : colors.coolNeutral[60],
+                    }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {dateQuery || '날짜 검색'}
+                  </Text>
+                  <SearchIcon width={20} height={20} />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* 리스트 영역 */}
+        <View style={{ width: '100%', backgroundColor: colors.background.default, paddingTop: 12, paddingBottom: 20 }}>
+          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center', gap: 12 }}>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    fontSize: 20,
+                    fontWeight: '700',
+                    fontStyle: 'normal',
+                    color: colors.coolNeutral[90],
+                  }}
+                >
+                  최근운행
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    fontSize: 20,
+                    fontWeight: '700',
+                    fontStyle: 'normal',
+                    color: colors.primary[50],
+                  }}
+                >
+                  {filteredRecords.length}건
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              {filteredRecords.map((item) => (
+                <DriveRecordCard key={item.id} item={item} />
+              ))}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* 날짜 선택 모달 */}
+      <Modal
+        visible={isDatePickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDatePicker}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)', justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={closeDatePicker}
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+            accessibilityRole="button"
+            accessibilityLabel="dismiss-date-picker"
+          />
+
+          <View
+            style={{
+              width: '100%',
+              backgroundColor: colors.background.default,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingTop: 18,
+              paddingBottom: 24,
+              paddingHorizontal: 20,
+              gap: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body1Semibold,
+                  color: colors.coolNeutral[80],
+                }}
+              >
+                날짜 선택
+              </Text>
+              <Pressable
+                onPress={closeDatePicker}
+                accessibilityRole="button"
+                accessibilityLabel="close-date-picker"
+                style={{ alignItems: 'center', justifyContent: 'center' }}
+              >
+                <XIcon width={24} height={24} />
+              </Pressable>
+            </View>
+
+            <View style={{ gap: 24 }}>
+              <View
+                style={{
+                  width: '100%',
+                  borderRadius: borderRadius.lg,
+                  backgroundColor: colors.coolNeutral[10],
+                  borderWidth: 1,
+                  borderColor: colors.coolNeutral[20],
+                  paddingVertical: 16,
+                  paddingHorizontal: 12,
+                }}
+              >
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  {/* Year */}
+                  <View style={{ flex: 1, position: 'relative' }}>
+                    {/* 중앙 선택 영역 고정 하이라이트 */}
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: DATE_WHEEL_PADDING,
+                        height: DATE_WHEEL_ITEM_HEIGHT,
+                        borderRadius: borderRadius.md,
+                        backgroundColor: colors.background.default,
+                      }}
+                    />
+                    <FlatList
+                      ref={(r) => {
+                        yearListRef.current = r;
+                      }}
+                      data={DATE_PICKER_YEARS}
+                      keyExtractor={(item) => `y-${item}`}
+                      showsVerticalScrollIndicator={false}
+                      initialScrollIndex={Math.max(0, DATE_PICKER_YEARS.indexOf(pickedYear))}
+                      initialNumToRender={DATE_PICKER_YEARS.length}
+                      snapToInterval={DATE_WHEEL_ITEM_HEIGHT}
+                      decelerationRate="fast"
+                      contentContainerStyle={{ paddingVertical: DATE_WHEEL_PADDING }}
+                      getItemLayout={(_, index) => ({
+                        length: DATE_WHEEL_ITEM_HEIGHT,
+                        offset: DATE_WHEEL_ITEM_HEIGHT * index,
+                        index,
+                      })}
+                      style={{ height: DATE_WHEEL_HEIGHT }}
+                      onScrollToIndexFailed={() => {}}
+                      scrollEventThrottle={16}
+                      onScroll={(e) => {
+                        const idx = Math.round(e.nativeEvent.contentOffset.y / DATE_WHEEL_ITEM_HEIGHT);
+                        if (idx === yearIdxRef.current) return;
+                        const y = DATE_PICKER_YEARS[idx];
+                        if (!y) return;
+                        yearIdxRef.current = idx;
+                        setPickedYear(y);
+                      }}
+                      renderItem={({ item, index }) => {
+                        const selected = item === pickedYear;
+                        return (
+                          <Pressable
+                            onPress={() => {
+                              setPickedYear(item);
+                              yearListRef.current?.scrollToIndex({ index, animated: true });
+                            }}
+                            style={{
+                              height: DATE_WHEEL_ITEM_HEIGHT,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: borderRadius.md,
+                              backgroundColor: 'transparent',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: typography.fontFamily.pretendard,
+                                ...typography.styles.body2Bold,
+                                color: selected ? colors.primary[50] : colors.coolNeutral[40],
+                              }}
+                            >
+                              {item}년
+                            </Text>
+                          </Pressable>
+                        );
+                      }}
+                    />
+                  </View>
+
+                  {/* Month */}
+                  <View style={{ flex: 1, position: 'relative' }}>
+                    {/* 중앙 선택 영역 고정 하이라이트 */}
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: DATE_WHEEL_PADDING,
+                        height: DATE_WHEEL_ITEM_HEIGHT,
+                        borderRadius: borderRadius.md,
+                        backgroundColor: colors.background.default,
+                      }}
+                    />
+                    <FlatList
+                      ref={(r) => {
+                        monthListRef.current = r;
+                      }}
+                      data={DATE_PICKER_MONTHS}
+                      keyExtractor={(item) => `m-${item}`}
+                      showsVerticalScrollIndicator={false}
+                      initialScrollIndex={Math.max(0, DATE_PICKER_MONTHS.indexOf(pickedMonth))}
+                      initialNumToRender={DATE_PICKER_MONTHS.length}
+                      snapToInterval={DATE_WHEEL_ITEM_HEIGHT}
+                      decelerationRate="fast"
+                      contentContainerStyle={{ paddingVertical: DATE_WHEEL_PADDING }}
+                      getItemLayout={(_, index) => ({
+                        length: DATE_WHEEL_ITEM_HEIGHT,
+                        offset: DATE_WHEEL_ITEM_HEIGHT * index,
+                        index,
+                      })}
+                      style={{ height: DATE_WHEEL_HEIGHT }}
+                      onScrollToIndexFailed={() => {}}
+                      scrollEventThrottle={16}
+                      onScroll={(e) => {
+                        const idx = Math.round(e.nativeEvent.contentOffset.y / DATE_WHEEL_ITEM_HEIGHT);
+                        if (idx === monthIdxRef.current) return;
+                        const m = DATE_PICKER_MONTHS[idx];
+                        if (!m) return;
+                        monthIdxRef.current = idx;
+                        setPickedMonth(m);
+                      }}
+                      renderItem={({ item, index }) => {
+                        const selected = item === pickedMonth;
+                        return (
+                          <Pressable
+                            onPress={() => {
+                              setPickedMonth(item);
+                              monthListRef.current?.scrollToIndex({ index, animated: true });
+                            }}
+                            style={{
+                              height: DATE_WHEEL_ITEM_HEIGHT,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: borderRadius.md,
+                              backgroundColor: 'transparent',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: typography.fontFamily.pretendard,
+                                ...typography.styles.body2Bold,
+                                color: selected ? colors.primary[50] : colors.coolNeutral[40],
+                              }}
+                            >
+                              {item}월
+                            </Text>
+                          </Pressable>
+                        );
+                      }}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <MainButton
+                label={`${pickedYear}년 ${pickedMonth}월 선택`}
+                alwaysPrimary
+                onPress={applyDatePicker}
+                containerStyle={{ width: '100%' }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
+        <NavigationBar
+          active="car"
+          showBorder
+          onPress={(tab) => {
+            const to =
+              tab === 'home'
+                ? '/home'
+                : tab === 'car'
+                  ? '/car'
+                  : tab === 'coin'
+                    ? '/coin'
+                    : tab === 'store'
+                      ? '/store'
+                      : '/user';
+            router.push(to);
+          }}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 

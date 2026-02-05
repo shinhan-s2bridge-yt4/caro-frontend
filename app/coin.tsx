@@ -1500,7 +1500,7 @@ export default function CoinScreen() {
                       color: colors.coolNeutral[90],
                     }}
                   >
-                    1월 {selectedCategoryLabel}
+                    {selectedCategoryLabel}
                   </Text>
                   <Text
                     style={{

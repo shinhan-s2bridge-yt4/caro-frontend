@@ -7,8 +7,10 @@ export function useAuth() {
   const accessTokenExpiresIn = useAuthStore((s) => s.accessTokenExpiresIn);
   const refreshTokenExpiresIn = useAuthStore((s) => s.refreshTokenExpiresIn);
   const isLoggedIn = useAuthStore(selectIsLoggedIn);
+  const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const setAuth = useAuthStore((s) => s.setAuth);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const logout = useAuthStore((s) => s.logout);
 
   return {
     memberId,
@@ -17,8 +19,10 @@ export function useAuth() {
     accessTokenExpiresIn,
     refreshTokenExpiresIn,
     isLoggedIn,
+    isLoggingOut,
     setAuth,
     clearAuth,
+    logout,
   };
 }
 

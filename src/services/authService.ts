@@ -64,3 +64,23 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 
   return data.data?.exists ?? false;
 }
+
+export async function logout(params: { accessToken: string }): Promise<void> {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error('EXPO_PUBLIC_API_BASE_URL 이 설정되어있지 않습니다.');
+  }
+  if (!params.accessToken) {
+    throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+  }
+
+  await axios.post<ApiResponse<unknown>>(
+    `${baseUrl}/api/v1/auth/logout`,
+    null,
+    {
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+      },
+    },
+  );
+}
