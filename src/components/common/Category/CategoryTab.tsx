@@ -23,8 +23,8 @@ const Category = ({ selected, onSelect }: CategoryProps) => {
             key={category.key}
             onPress={() => onSelect(category.key)}
             style={{
-              height: 36, 
-              padding: 12,
+              height: 36,
+              paddingHorizontal: 12,
               borderRadius: borderRadius.md,  // 12px
               alignItems: 'center',
               justifyContent: 'center',

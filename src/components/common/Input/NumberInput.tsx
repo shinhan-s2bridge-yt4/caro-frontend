@@ -86,9 +86,17 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ }}>
+    <View style={{ width: '100%', maxWidth: 334 }}>
       {/* 라벨 */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: 334, marginBottom: 12}}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+          marginBottom: 12,
+        }}
+      >
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
@@ -114,8 +122,8 @@ const TextInput = ({
       {/* 입력창 */}
       <View
         style={{
-          width: 334,
-          height:48,
+          width: '100%',
+          height: 48,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
