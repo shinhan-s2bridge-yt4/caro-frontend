@@ -66,11 +66,11 @@ const PasswordInput = ({
   return (
     <View style={{  }}>
       {/* 라벨 */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: 334, marginBottom: 12}}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 12}}>
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -117,7 +117,7 @@ const PasswordInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: colors.coolNeutral[70],
             padding: 0,
           }}

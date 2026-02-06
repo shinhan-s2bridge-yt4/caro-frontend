@@ -1,17 +1,20 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { MainButton } from '@/components/common/Button/MainButton';
+import { useAuthStore } from '@/stores/authStore';
+import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
+import type { DrivingRecord } from '@/types/drivingRecord';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import SearchIcon from '../assets/icons/search.svg';
 import GCarIcon from '../assets/icons/gcar.svg';
 import XIcon from '../assets/icons/x_icon.svg';
+import PointIcon from '../assets/icons/point.svg';
 
-const SCREEN_MAX_WIDTH = 375;
 const TAG_MIN_WIDTH = 44;
 const DATE_WHEEL_ITEM_HEIGHT = 44;
 const DATE_WHEEL_HEIGHT = 220;
@@ -19,79 +22,31 @@ const DATE_WHEEL_PADDING = (DATE_WHEEL_HEIGHT - DATE_WHEEL_ITEM_HEIGHT) / 2;
 const DATE_PICKER_YEARS: number[] = [2024, 2025, 2026, 2027, 2028];
 const DATE_PICKER_MONTHS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
 
-type DriveRecord = {
-  id: string;
-  dateLabel: string; // e.g. "2026. 02. 04 (수)"
-  earnedCoinLabel: string; // e.g. "+ 153"
-  start: { time: string; address: string };
-  end: { time: string; address: string };
-  distanceKmLabel: string; // e.g. "15.3 km"
-  carModel: string; // e.g. "렉서스 ES300h"
-};
+function formatDateLabel(driveDate: string): string {
+  // API에서 "2026. 02. 06 (금)" 형태로 포맷팅되어 옴
+  return driveDate;
+}
 
-const MOCK_SUMMARY = {
-  totalDistanceLabel: '163.0 km',
-  totalPointLabel: '1,605P',
-};
+function formatTimeLabel(time: string): string {
+  // time이 "10:20:00" 또는 "10:20" 형태라고 가정
+  return time.slice(0, 5);
+}
 
-const MOCK_RECORDS: DriveRecord[] = [
-  {
-    id: '1',
-    dateLabel: '2026. 02. 04 (수)',
-    earnedCoinLabel: '+ 153',
-    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
-    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
-    distanceKmLabel: '15.3 km',
-    carModel: '렉서스 ES300h',
-  },
-  {
-    id: '2',
-    dateLabel: '2026. 02. 04 (수)',
-    earnedCoinLabel: '+ 153',
-    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
-    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
-    distanceKmLabel: '15.3 km',
-    carModel: '렉서스 ES300h',
-  },
-  {
-    id: '3',
-    dateLabel: '2026. 02. 04 (수)',
-    earnedCoinLabel: '+ 153',
-    start: { time: '10:20', address: '서울 특별시 중구 충무로 2가' },
-    end: { time: '12:31', address: '서울 특별시 중구 을지로 4가' },
-    distanceKmLabel: '15.3 km',
-    carModel: '렉서스 ES300h',
-  },
-];
+function formatDistanceLabel(distanceKm: string): string {
+  // API에서 "1.5 km" 형태로 포맷팅되어 옴
+  return distanceKm;
+}
+
+function formatEarnedPointsLabel(points: number): string {
+  return `+ ${points.toLocaleString()}`;
+}
+
+function formatCarModel(modelName: string, variantName: string): string {
+  return variantName ? `${modelName} ${variantName}` : modelName;
+}
 
 function CoinCMark({ size = 14 }: { size?: number }) {
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: colors.primary[50],
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      accessibilityLabel="coin-c-mark"
-    >
-      <Text
-        style={{
-          fontFamily: typography.fontFamily.pretendard,
-          fontSize: Math.round(size * 0.72),
-          fontWeight: '800',
-          color: colors.coolNeutral[10],
-          lineHeight: Math.round(size * 0.78),
-          textAlign: 'center',
-          includeFontPadding: false,
-        }}
-      >
-        C
-      </Text>
-    </View>
-  );
+  return <PointIcon width={size} height={size} />;
 }
 
 function StatCell({ label, value }: { label: string; value: string }) {
@@ -100,7 +55,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
       <Text
         style={{
           fontFamily: typography.fontFamily.pretendard,
-          ...typography.styles.body3Medium,
+          ...typography.styles.body2Medium,
           color: colors.coolNeutral[10],
         }}
       >
@@ -135,7 +90,7 @@ function Tag({ label }: { label: '출발' | '도착' }) {
       <Text
         style={{
           fontFamily: typography.fontFamily.pretendard,
-          ...typography.styles.captionSemibold,
+          ...typography.styles.body2Semibold,
           color: colors.coolNeutral[10],
         }}
       >
@@ -145,7 +100,14 @@ function Tag({ label }: { label: '출발' | '도착' }) {
   );
 }
 
-function DriveRecordCard({ item }: { item: DriveRecord }) {
+function DriveRecordCard({ item }: { item: DrivingRecord }) {
+  const dateLabel = formatDateLabel(item.driveDate);
+  const earnedLabel = formatEarnedPointsLabel(item.earnedPoints);
+  const startTime = formatTimeLabel(item.startTime);
+  const endTime = formatTimeLabel(item.endTime);
+  const distanceLabel = formatDistanceLabel(item.distanceKm);
+  const carModel = formatCarModel(item.vehicleModelName, item.vehicleVariantName);
+
   return (
     <View
       style={{
@@ -154,28 +116,28 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
         borderRadius: borderRadius.lg,
         paddingHorizontal: 20,
         paddingVertical: 20,
-        gap: 12,
+        gap: 8,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body2Semibold,
+            ...typography.styles.body1Semibold,
             color: colors.coolNeutral[80],
           }}
         >
-          {item.dateLabel}
+          {dateLabel}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text
             style={{
               fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.body2Bold,
+              ...typography.styles.h3Semibold,
               color: colors.primary[50],
             }}
           >
-            {item.earnedCoinLabel}
+            {earnedLabel}
           </Text>
           <CoinCMark size={14} />
         </View>
@@ -184,15 +146,15 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
           <Tag label="출발" />
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionMedium,
+                ...typography.styles.body2Medium,
                 color: colors.coolNeutral[60],
               }}
             >
-              {item.start.time}
+              {startTime}
             </Text>
             <Text
               numberOfLines={1}
@@ -200,26 +162,26 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
               style={{
                 flex: 1,
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionMedium,
+                ...typography.styles.body2Medium,
                 color: colors.coolNeutral[40],
               }}
             >
-              {item.start.address}
+              {item.startLocation}
             </Text>
           </View>
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
           <Tag label="도착" />
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionMedium,
+                ...typography.styles.body2Medium,
                 color: colors.coolNeutral[60],
               }}
             >
-              {item.end.time}
+              {endTime}
             </Text>
             <Text
               numberOfLines={1}
@@ -227,11 +189,11 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
               style={{
                 flex: 1,
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionMedium,
+                ...typography.styles.body2Medium,
                 color: colors.coolNeutral[40],
               }}
             >
-              {item.end.address}
+              {item.endLocation}
             </Text>
           </View>
         </View>
@@ -245,16 +207,16 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
           <Text
             style={{
               fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionSemibold,
+              ...typography.styles.body3Semibold,
               color: colors.coolNeutral[40],
             }}
           >
-            {item.distanceKmLabel}
+            {distanceLabel}
           </Text>
           <Text
             style={{
               fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionSemibold,
+              ...typography.styles.body3Semibold,
               color: colors.coolNeutral[40],
             }}
           >
@@ -265,11 +227,11 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionSemibold,
+                ...typography.styles.body3Semibold,
                 color: colors.coolNeutral[40],
               }}
             >
-              {item.carModel}
+              {carModel}
             </Text>
           </View>
         </View>
@@ -280,28 +242,53 @@ function DriveRecordCard({ item }: { item: DriveRecord }) {
 
 export default function CarScreen() {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const {
+    records,
+    yearMonth,
+    isLoading,
+    error,
+    fetchRecords,
+    summary,
+    fetchSummary,
+  } = useDrivingRecordStore();
+
   const [dateQuery, setDateQuery] = useState<string>('');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [pickedYear, setPickedYear] = useState<number>(2026);
-  const [pickedMonth, setPickedMonth] = useState<number>(2);
+
+  // 현재 날짜 기준 초기값
+  const now = new Date();
+  const [pickedYear, setPickedYear] = useState<number>(now.getFullYear());
+  const [pickedMonth, setPickedMonth] = useState<number>(now.getMonth() + 1);
 
   const yearListRef = useRef<FlatList<number> | null>(null);
   const monthListRef = useRef<FlatList<number> | null>(null);
   const yearIdxRef = useRef<number>(Math.max(0, DATE_PICKER_YEARS.indexOf(pickedYear)));
   const monthIdxRef = useRef<number>(Math.max(0, DATE_PICKER_MONTHS.indexOf(pickedMonth)));
 
-  const filteredRecords = useMemo(() => {
-    const q = dateQuery.trim();
-    if (!q) return MOCK_RECORDS;
-    return MOCK_RECORDS.filter((r) => r.dateLabel.includes(q));
-  }, [dateQuery]);
+  // 컴포넌트 마운트 시 데이터 로드 (년월 미지정)
+  useEffect(() => {
+    if (accessToken) {
+      fetchRecords({ accessToken });
+      fetchSummary({ accessToken });
+    }
+  }, [accessToken]);
 
-  const openDatePicker = () => setIsDatePickerOpen(true);
-  const closeDatePicker = () => setIsDatePickerOpen(false);
-  const applyDatePicker = () => {
+  // 총 운행거리 및 총 적립 포인트 (summary API 사용)
+  const totalDistanceLabel = summary ? `${summary.totalDistanceKm.toFixed(1)} km` : '- km';
+  const totalPointLabel = summary ? `${summary.totalEarnedPoints.toLocaleString()} P` : '-P';
+
+  const openDatePicker = useCallback(() => setIsDatePickerOpen(true), []);
+  const closeDatePicker = useCallback(() => setIsDatePickerOpen(false), []);
+
+  const applyDatePicker = useCallback(() => {
+    const newYearMonth = `${pickedYear}-${String(pickedMonth).padStart(2, '0')}`;
     setDateQuery(`${pickedYear}. ${String(pickedMonth).padStart(2, '0')}`);
     closeDatePicker();
-  };
+    if (accessToken) {
+      fetchRecords({ yearMonth: newYearMonth, accessToken });
+    }
+  }, [pickedYear, pickedMonth, accessToken, fetchRecords, closeDatePicker]);
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
@@ -313,7 +300,7 @@ export default function CarScreen() {
             gap: 18,
           }}
         >
-          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center', gap: 20 }}>
+          <View style={{ width: '100%', gap: 20 }}>
             {/* 헤더 */}
             <View
               style={{
@@ -336,7 +323,7 @@ export default function CarScreen() {
               <Text
                 style={{
                   fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body1Semibold,
+                  ...typography.styles.h3Semibold,
                   color: colors.coolNeutral[90],
                 }}
               >
@@ -364,9 +351,9 @@ export default function CarScreen() {
                       gap: 26,
                     }}
                   >
-                    <StatCell label="총 운행거리" value={MOCK_SUMMARY.totalDistanceLabel} />
+                    <StatCell label="총 운행거리" value={totalDistanceLabel} />
                     <View style={{ width: 1, height: 56, backgroundColor: 'rgba(255,255,255,0.4)' }} />
-                    <StatCell label="총 적립 포인트" value={MOCK_SUMMARY.totalPointLabel} />
+                    <StatCell label="총 적립 포인트" value={totalPointLabel} />
                   </View>
                 </View>
               </View>
@@ -392,7 +379,7 @@ export default function CarScreen() {
                     style={{
                       flex: 1,
                       fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body3Semibold,
+                      ...typography.styles.body1Semibold,
                       color: dateQuery ? colors.coolNeutral[90] : colors.coolNeutral[60],
                     }}
                     numberOfLines={1}
@@ -408,8 +395,8 @@ export default function CarScreen() {
         </View>
 
         {/* 리스트 영역 */}
-        <View style={{ width: '100%', backgroundColor: colors.background.default, paddingTop: 12, paddingBottom: 20 }}>
-          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center', gap: 12 }}>
+        <View style={{ width: '100%', backgroundColor: colors.background.default, paddingTop: 12, paddingBottom: 20, minHeight: 200 }}>
+          <View style={{ width: '100%', gap: 12 }}>
             <View style={{ paddingHorizontal: 20, paddingVertical: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
                 <Text
@@ -421,7 +408,7 @@ export default function CarScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  최근운행
+                  {yearMonth ? `${yearMonth.split('-')[0]}년 ${parseInt(yearMonth.split('-')[1], 10)}월` : '최근운행'}
                 </Text>
                 <Text
                   style={{
@@ -432,16 +419,82 @@ export default function CarScreen() {
                     color: colors.primary[50],
                   }}
                 >
-                  {filteredRecords.length}건
+                  {records.length}건
                 </Text>
               </View>
             </View>
 
-            <View style={{ gap: 12 }}>
-              {filteredRecords.map((item) => (
-                <DriveRecordCard key={item.id} item={item} />
-              ))}
-            </View>
+            {isLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={colors.primary[50]} />
+              </View>
+            ) : error ? (
+              <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Medium,
+                    color: colors.coolNeutral[60],
+                    textAlign: 'center',
+                  }}
+                >
+                  {error}
+                </Text>
+              </View>
+            ) : records.length === 0 ? (
+              <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center', gap: 13 }}>
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Medium,
+                    color: colors.coolNeutral[60],
+                    textAlign: 'center',
+                  }}
+                >
+                  {yearMonth
+                    ? `${parseInt(yearMonth.split('-')[1], 10)}월은 아직\n운행기록이 없어요`
+                    : '아직 운행 기록이 없습니다.'}
+                </Text>
+                {yearMonth && (
+                  <Pressable
+                    onPress={() => {
+                      setDateQuery('');
+                      // 날짜 선택 모달의 기본값도 현재 날짜로 초기화
+                      const today = new Date();
+                      setPickedYear(today.getFullYear());
+                      setPickedMonth(today.getMonth() + 1);
+                      if (accessToken) {
+                        fetchRecords({ accessToken });
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="view-all-records"
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: colors.primary[50],
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Semibold,
+                        color: colors.coolNeutral[10],
+                      }}
+                    >
+                      최신순으로 보기
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              <View style={{ gap: 12, paddingHorizontal: 20 }}>
+                {records.map((item) => (
+                  <DriveRecordCard key={item.id} item={item} />
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>

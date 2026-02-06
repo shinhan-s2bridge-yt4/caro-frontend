@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -21,6 +22,10 @@ import CategoryTab from '@/components/common/Category/CategoryTab';
 import type { CategoryKey } from '@/constants/categories';
 import TextInput from '@/components/common/Input/TextInput';
 import NumberInput from '@/components/common/Input/NumberInput';
+import { useAuthStore } from '@/stores/authStore';
+import { useExpenseStore } from '@/stores/expenseStore';
+import { useProfileStore } from '@/stores/profileStore';
+import type { ExpenseCategory } from '@/types/expense';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
@@ -81,8 +86,53 @@ function formatKoreanDateLabel(year: number, month: number, day: number) {
   return `${year}년 ${month}월 ${day}일 (${weekday})`;
 }
 
+// API category를 UI CategoryKey로 변환
+function mapApiCategoryToUi(category: ExpenseCategory): Exclude<CategoryKey, 'ALL'> {
+  const map: Record<ExpenseCategory, Exclude<CategoryKey, 'ALL'>> = {
+    FUEL: 'FUEL',
+    MAINTENANCE: 'REPAIR',
+    PARKING: 'PARKING',
+    TOLL: 'TOLL',
+  };
+  return map[category];
+}
+
+// UI CategoryKey를 API category로 변환
+function mapUiCategoryToApi(category: CategoryKey): ExpenseCategory | undefined {
+  if (category === 'ALL') return undefined;
+  const map: Record<Exclude<CategoryKey, 'ALL'>, ExpenseCategory> = {
+    FUEL: 'FUEL',
+    REPAIR: 'MAINTENANCE',
+    PARKING: 'PARKING',
+    TOLL: 'TOLL',
+  };
+  return map[category];
+}
+
+// "2026년 2월 6일 (금)" → "2026-02-06" 변환
+function parseKoreanDateToIso(koreanDate: string): string {
+  const match = koreanDate.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+  if (!match) return '';
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
 export default function CoinScreen() {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const { primaryCar } = useProfileStore();
+  const {
+    expenses,
+    totalCount,
+    isLoading,
+    error,
+    fetchExpenses,
+    createExpense,
+    isCreating,
+    createError,
+    categories,
+    fetchCategories,
+  } = useExpenseStore();
 
   const tabs = useMemo(
     () => [
@@ -109,7 +159,7 @@ export default function CoinScreen() {
   const [addAmount, setAddAmount] = useState<string>('');
   const [addPlace, setAddPlace] = useState<string>('');
   const [addMemo, setAddMemo] = useState<string>('');
-  const [addCategory, setAddCategory] = useState<Exclude<CategoryKey, 'ALL'>>('FUEL');
+  const [addCategory, setAddCategory] = useState<ExpenseCategory>('FUEL');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
   const [restoreAddExpenseAfterDatePicker, setRestoreAddExpenseAfterDatePicker] =
     useState<boolean>(false);
@@ -265,6 +315,31 @@ export default function CoinScreen() {
     return expenseByMonth.get(key) ?? new Map<number, { amountLabel: string; level: ExpenseLevel }>();
   }, [currentYear, currentMonthIndex, expenseByMonth]);
 
+  // 지출 탭일 때 API 호출
+  useEffect(() => {
+    if (selectedTab === 'expense' && accessToken) {
+      const apiCategory = mapUiCategoryToApi(selectedCategory);
+      fetchExpenses({
+        accessToken,
+        category: apiCategory,
+      });
+    }
+  }, [selectedTab, selectedCategory, accessToken]);
+
+  // 카테고리 목록 조회 (최초 1회)
+  useEffect(() => {
+    if (accessToken && categories.length === 0) {
+      fetchCategories({ accessToken });
+    }
+  }, [accessToken, categories.length, fetchCategories]);
+
+  // 카테고리 로드 후 첫 번째 카테고리를 기본 선택
+  useEffect(() => {
+    if (categories.length > 0 && !categories.find(c => c.category === addCategory)) {
+      setAddCategory(categories[0].category);
+    }
+  }, [categories, addCategory]);
+
   const calendarHeaderLabel = useMemo(() => {
     return `${currentYear}년 ${currentMonthIndex + 1}월`;
   }, [currentMonthIndex, currentYear]);
@@ -291,70 +366,23 @@ export default function CoinScreen() {
     setSelectedDay(1);
   };
 
-  const expenseItems = useMemo<ExpenseItem[]>(
-    () => [
-      {
-        id: '1',
-        category: 'FUEL',
-        title: 'S-OIL 깨나리주유소',
-        note: '현대카드로 결제했고, 무료시간 1시간',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '2',
-        category: 'FUEL',
-        title: 'GS 칼텍스 강남점',
-        note: 'KT 할인 쿠폰을 사용했음',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '3',
-        category: 'FUEL',
-        title: 'SK에너지 판교점',
-        note: '기름값이 근방에서 제일 싸다',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '4',
-        category: 'PARKING',
-        title: '역삼역 공영주차장',
-        note: '정기권 구매',
-        date: '2026-02-01',
-        amount: 12000,
-      },
-      {
-        id: '5',
-        category: 'TOLL',
-        title: '하이패스 통행료',
-        note: '출퇴근',
-        date: '2026-02-01',
-        amount: 3500,
-      },
-      {
-        id: '6',
-        category: 'REPAIR',
-        title: '블루핸즈',
-        note: '엔진오일 교체',
-        date: '2026-01-28',
-        amount: 82000,
-      },
-    ],
-    [],
-  );
-
-  const filteredExpenseItems = useMemo(() => {
-    if (selectedCategory === 'ALL') return expenseItems;
-    return expenseItems.filter((it) => it.category === selectedCategory);
-  }, [expenseItems, selectedCategory]);
+  // API 데이터를 UI 형식으로 변환
+  const expenseItems = useMemo<ExpenseItem[]>(() => {
+    return expenses.map((expense) => ({
+      id: String(expense.id),
+      category: mapApiCategoryToUi(expense.category),
+      title: expense.location || expense.categoryLabel,
+      note: expense.memo || undefined,
+      date: expense.expenseDate,
+      amount: expense.amount,
+    }));
+  }, [expenses]);
 
   const displayedExpenseItems = useMemo(() => {
     return isExpenseListExpanded
-      ? filteredExpenseItems
-      : filteredExpenseItems.slice(0, 5);
-  }, [filteredExpenseItems, isExpenseListExpanded]);
+      ? expenseItems
+      : expenseItems.slice(0, 5);
+  }, [expenseItems, isExpenseListExpanded]);
 
   const selectedCategoryLabel = useMemo(() => {
     const map: Record<CategoryKey, string> = {
@@ -505,7 +533,7 @@ export default function CoinScreen() {
                       <Text
                         style={{
                           fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.captionMedium,
+                          ...typography.styles.body3Medium,
                           color: colors.coolNeutral[40],
                         }}
                       >
@@ -519,7 +547,7 @@ export default function CoinScreen() {
                       <Text
                         style={{
                           fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.captionMedium,
+                          ...typography.styles.body3Medium,
                           color: colors.coolNeutral[40],
                         }}
                       >
@@ -530,13 +558,13 @@ export default function CoinScreen() {
                   </View>
 
                   <View style={{ gap: 20 }}>
-                    <View style={{ width: '100%', alignItems: 'center', gap: 20 }}>
+                    <View style={{ width: '100%', gap: 20 }}>
                       {/* 선택한 차량(하드코딩) */}
-                      <View style={{ width: '100%', maxWidth: 334, gap: 12 }}>
+                      <View style={{ width: '100%', gap: 12 }}>
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Semibold,
+                            ...typography.styles.body2Semibold,
                             color: colors.coolNeutral[80],
                           }}
                         >
@@ -561,11 +589,11 @@ export default function CoinScreen() {
                             <Text
                               style={{
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
+                                ...typography.styles.body2Semibold,
                                 color: colors.primary[50],
                               }}
                             >
-                              렉서스 ES300h
+                              {primaryCar?.modelName ?? '차량 없음'}
                             </Text>
 
                             <View
@@ -579,11 +607,11 @@ export default function CoinScreen() {
                             <Text
                               style={{
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
+                                ...typography.styles.body2Semibold,
                                 color: colors.primary[50],
                               }}
                             >
-                              123 가 4568
+                              {primaryCar?.registrationNumber ?? '-'}
                             </Text>
                           </View>
 
@@ -610,11 +638,11 @@ export default function CoinScreen() {
                         </View>
                       </View>
 
-                      <View style={{ width: '100%', maxWidth: 334, gap: 12 }}>
+                      <View style={{ width: '100%', gap: 12 }}>
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Semibold,
+                            ...typography.styles.body2Semibold,
                             color: colors.coolNeutral[80],
                           }}
                         >
@@ -639,7 +667,7 @@ export default function CoinScreen() {
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.body3Regular,
+                              ...typography.styles.body2Regular,
                               color: addDate ? colors.coolNeutral[70] : colors.coolNeutral[30],
                             }}
                           >
@@ -648,30 +676,24 @@ export default function CoinScreen() {
                         </Pressable>
                       </View>
 
-                      <View style={{ width: '100%', maxWidth: 334 }}>
+                      <View style={{ width: '100%', gap: 12 }}>
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body3Semibold,
+                        ...typography.styles.body2Semibold,
                         color: colors.coolNeutral[80],
-                        marginBottom: 12,
                       }}
                     >
                       카테고리
                     </Text>
 
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      {([
-                        { key: 'FUEL', label: '주유비' },
-                        { key: 'PARKING', label: '주차비' },
-                        { key: 'REPAIR', label: '정비·수리비' },
-                        { key: 'TOLL', label: '통행료' },
-                      ] as const).map((c) => {
-                        const selected = addCategory === c.key;
+                    <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+                      {categories.map((c) => {
+                        const selected = addCategory === c.category;
                         return (
                           <Pressable
-                            key={c.key}
-                            onPress={() => setAddCategory(c.key)}
+                            key={c.category}
+                            onPress={() => setAddCategory(c.category)}
                             style={{
                               height: 36,
                               paddingHorizontal: 12,
@@ -686,11 +708,11 @@ export default function CoinScreen() {
                             <Text
                               style={{
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
+                                ...typography.styles.body2Semibold,
                                 color: selected ? colors.coolNeutral[10] : colors.coolNeutral[40],
                               }}
                             >
-                              {c.label}
+                              {c.categoryLabel}
                             </Text>
                           </Pressable>
                         );
@@ -725,11 +747,44 @@ export default function CoinScreen() {
 
                     {/* 하단 버튼 */}
                     <Pressable
-                      disabled={!isAddEnabled}
-                      onPress={() => {
-                        if (!isAddEnabled) return;
-                        setIsAddExpenseOpen(false);
-                        resetAddExpenseForm();
+                      disabled={!isAddEnabled || isCreating || !primaryCar}
+                      onPress={async () => {
+                        if (!isAddEnabled || isCreating || !accessToken || !primaryCar) return;
+                        
+                        const expenseDate = parseKoreanDateToIso(addDate);
+                        
+                        if (!expenseDate) {
+                          Alert.alert('오류', '날짜가 올바르지 않습니다.');
+                          return;
+                        }
+
+                        const requestData = {
+                          memberCarId: primaryCar.id,
+                          expenseDate,
+                          amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
+                          category: addCategory,
+                          location: addPlace,
+                          memo: addMemo,
+                        };
+                        
+                        console.log('createExpense request:', requestData);
+
+                        const success = await createExpense({
+                          request: requestData,
+                          accessToken,
+                        });
+
+                        if (success) {
+                          setIsAddExpenseOpen(false);
+                          resetAddExpenseForm();
+                          // 지출 목록 새로고침
+                          fetchExpenses({ accessToken });
+                          Alert.alert('완료', '지출 내역이 추가되었습니다.');
+                        } else {
+                          // 스토어에서 에러 메시지 가져와서 표시
+                          const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
+                          Alert.alert('오류', errorMsg);
+                        }
                       }}
                       style={{
                         width: '100%',
@@ -737,18 +792,22 @@ export default function CoinScreen() {
                         borderRadius: borderRadius.md,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: isAddEnabled ? colors.primary[50] : colors.coolNeutral[20],
+                        backgroundColor: (isAddEnabled && !isCreating) ? colors.primary[50] : colors.coolNeutral[20],
                       }}
                     >
-                      <Text
-                        style={{
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body2Bold,
-                          color: isAddEnabled ? colors.coolNeutral[10] : colors.coolNeutral[40],
-                        }}
-                      >
-                        추가하기
-                      </Text>
+                      {isCreating ? (
+                        <ActivityIndicator size="small" color={colors.coolNeutral[10]} />
+                      ) : (
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.h3Bold,
+                            color: isAddEnabled ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                          }}
+                        >
+                          추가하기
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -1040,7 +1099,7 @@ export default function CoinScreen() {
         }}
       >
         <View style={{ width: '100%', flex: 1 }}>
-          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center' }}>
+          <View style={{ width: '100%' }}>
           {/* 상단 헤더 */}
           <View
             style={{
@@ -1064,7 +1123,7 @@ export default function CoinScreen() {
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body1Semibold,
+                ...typography.styles.h3Semibold,
                 color: colors.coolNeutral[90],
               }}
             >
@@ -1083,11 +1142,11 @@ export default function CoinScreen() {
           >
             <CouponTab tabs={tabs} selectedTab={selectedTab} onTabChange={setSelectedTab} />
 
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ paddingHorizontal: 20 }}>
               {/* 요약 카드 */}
               <View
                 style={{
-                  width: 335,
+                  width: '100%',
                   backgroundColor: colors.coolNeutral[10],
                   borderRadius: borderRadius.md,
                   padding: 20,
@@ -1149,7 +1208,7 @@ export default function CoinScreen() {
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.captionMedium,
+                        ...typography.styles.body3Medium,
                         color: colors.coolNeutral[50],
                       }}
                     >
@@ -1159,7 +1218,7 @@ export default function CoinScreen() {
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.captionSemibold,
+                        ...typography.styles.body3Semibold,
                         color: colors.primary[50],
                       }}
                     >
@@ -1262,12 +1321,9 @@ export default function CoinScreen() {
                 backgroundColor: colors.coolNeutral[10],
               }}
             >
-              {/* 큰 화면에서도 7칸 유지: 내용 폭을 375로 제한 */}
               <View
                 style={{
                   width: '100%',
-                  maxWidth: SCREEN_MAX_WIDTH,
-                  alignSelf: 'center',
                   paddingVertical: 24,
                   paddingHorizontal: 20,
                 }}
@@ -1319,7 +1375,7 @@ export default function CoinScreen() {
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.captionMedium,
+                              ...typography.styles.body1Medium,
                               color: colors.coolNeutral[40],
                             }}
                           >
@@ -1373,9 +1429,7 @@ export default function CoinScreen() {
                                   <Text
                                     style={{
                                       fontFamily: typography.fontFamily.pretendard,
-                                      fontSize: 15,
-                                      fontWeight: '600',
-                                      fontStyle: 'normal',
+                                      ...typography.styles.body1Semibold,
                                       color: cell.amountLabel
                                         ? colors.coolNeutral[80]
                                         : colors.coolNeutral[40],
@@ -1390,9 +1444,7 @@ export default function CoinScreen() {
                                 <Text
                                   style={{
                                     fontFamily: typography.fontFamily.pretendard,
-                                    fontSize: 9,
-                                    fontWeight: '700',
-                                    fontStyle: 'normal',
+                                    ...typography.styles.captionBold,
                                     color: amountColor,
                                   }}
                                 >
@@ -1412,8 +1464,6 @@ export default function CoinScreen() {
               <View
                 style={{
                   width: '100%',
-                  maxWidth: SCREEN_MAX_WIDTH,
-                  alignSelf: 'center',
                   paddingHorizontal: 20,
                   marginTop: 14,
                 }}
@@ -1430,7 +1480,7 @@ export default function CoinScreen() {
                   <Text
                     style={{
                       fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.captionMedium,
+                      ...typography.styles.body3Medium,
                       color: colors.coolNeutral[40],
                     }}
                   >
@@ -1456,7 +1506,7 @@ export default function CoinScreen() {
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.captionMedium,
+                            ...typography.styles.body3Medium,
                             color: colors.coolNeutral[40],
                           }}
                         >
@@ -1509,70 +1559,84 @@ export default function CoinScreen() {
                       color: colors.primary[50],
                     }}
                   >
-                    {filteredExpenseItems.length}건
+                    {totalCount}건
                   </Text>
                 </View>
               </View>
 
               {/* 리스트 */}
               <View style={{ backgroundColor: colors.coolNeutral[10] }}>
-                {displayedExpenseItems.map((item, idx) => {
-                  const isLast = idx === displayedExpenseItems.length - 1;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {}}
-                      accessibilityRole="button"
-                      accessibilityLabel={`expense-${item.id}`}
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={colors.primary[50]} />
+                  </View>
+                ) : error ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                    <Text
                       style={{
-                        paddingHorizontal: 20,
-                        paddingVertical: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        ...(isLast
-                          ? {}
-                          : {
-                              borderBottomWidth: 1,
-                              borderBottomColor: colors.coolNeutral[30],
-                            }),
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Medium,
+                        color: colors.coolNeutral[60],
+                        textAlign: 'center',
                       }}
                     >
-                      {/* 썸네일 */}
-                      <View
+                      {error}
+                    </Text>
+                  </View>
+                ) : expenseItems.length === 0 ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Medium,
+                        color: colors.coolNeutral[60],
+                        textAlign: 'center',
+                      }}
+                    >
+                      지출 내역이 없습니다.
+                    </Text>
+                  </View>
+                ) : (
+                  displayedExpenseItems.map((item, idx) => {
+                    const isLast = idx === displayedExpenseItems.length - 1;
+                    const categoryLabelMap: Record<Exclude<CategoryKey, 'ALL'>, string> = {
+                      FUEL: '주유비',
+                      PARKING: '주차비',
+                      REPAIR: '정비·수리비',
+                      TOLL: '통행료',
+                    };
+                    return (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => {}}
+                        accessibilityRole="button"
+                        accessibilityLabel={`expense-${item.id}`}
                         style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: borderRadius.full,
-                          backgroundColor: colors.background.default,
+                          paddingHorizontal: 20,
+                          paddingVertical: 16,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          ...(isLast
+                            ? {}
+                            : {
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.coolNeutral[30],
+                              }),
                         }}
-                      />
-
-                      {/* 본문 */}
-                      <View style={{ flex: 1, gap: 6 }}>
+                      >
+                        {/* 썸네일 */}
                         <View
                           style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
+                            width: 44,
+                            height: 44,
+                            borderRadius: borderRadius.full,
+                            backgroundColor: colors.background.default,
                           }}
-                        >
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              flex: 1,
-                              fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.body3Semibold,
-                              color: colors.coolNeutral[90],
-                            }}
-                          >
-                            {item.title}
-                          </Text>
+                        />
 
-                          <GRightIcon width={24} height={24} />
-                        </View>
-
-                        <View style={{ gap: 4 }}>
+                        {/* 본문 */}
+                        <View style={{ flex: 1, gap: 6 }}>
                           <View
                             style={{
                               flexDirection: 'row',
@@ -1580,66 +1644,90 @@ export default function CoinScreen() {
                               justifyContent: 'space-between',
                             }}
                           >
-                            {/* 메모(왼쪽) + 금액(오른쪽) 같은 줄 */}
                             <Text
                               numberOfLines={1}
                               style={{
                                 flex: 1,
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: item.note ? colors.primary[50] : colors.coolNeutral[40],
+                                ...typography.styles.body2Semibold,
+                                color: colors.coolNeutral[90],
                               }}
                             >
-                              {item.note ?? item.date}
+                              {item.title}
                             </Text>
 
-                            <Text
-                              style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Bold,
-                                color: colors.primary[50],
-                              }}
-                            >
-                              {item.amount.toLocaleString('ko-KR')}원
-                            </Text>
+                            <GRightIcon width={24} height={24} />
                           </View>
 
-                          {/* 날짜 + 카테고리 */}
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'flex-end',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <Text
+                          <View style={{ gap: 4 }}>
+                            <View
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: colors.coolNeutral[40],
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                               }}
                             >
-                              {item.date}
-                            </Text>
+                              {/* 메모(왼쪽) + 금액(오른쪽) 같은 줄 */}
+                              <Text
+                                numberOfLines={1}
+                                style={{
+                                  flex: 1,
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Medium,
+                                  color: item.note ? colors.primary[50] : colors.coolNeutral[40],
+                                }}
+                              >
+                                {item.note ?? item.date}
+                              </Text>
 
-                            <Text
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Bold,
+                                  color: colors.primary[50],
+                                }}
+                              >
+                                {item.amount.toLocaleString('ko-KR')}원
+                              </Text>
+                            </View>
+
+                            {/* 날짜 + 카테고리 */}
+                            <View
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: colors.coolNeutral[40],
+                                flexDirection: 'row',
+                                alignItems: 'flex-end',
+                                justifyContent: 'space-between',
                               }}
                             >
-                              {selectedCategoryLabel}
-                            </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Medium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {item.date}
+                              </Text>
+
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Medium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {categoryLabelMap[item.category]}
+                              </Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                      </Pressable>
+                    );
+                  })
+                )}
               </View>
 
-              {filteredExpenseItems.length > 5 && (
+              {expenseItems.length > 5 && (
                 <Pressable
                   onPress={() => setIsExpenseListExpanded((v) => !v)}
                   accessibilityRole="button"

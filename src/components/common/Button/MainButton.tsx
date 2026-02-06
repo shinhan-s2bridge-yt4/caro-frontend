@@ -50,7 +50,7 @@ export const MainButton = ({
       <Text
         style={{
           fontFamily: typography.fontFamily.pretendard,
-          ...typography.styles.body2Bold,
+          ...typography.styles.h3Bold,
           color: textColor,
         }}
       >

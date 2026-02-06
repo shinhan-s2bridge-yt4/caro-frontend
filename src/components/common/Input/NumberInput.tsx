@@ -100,7 +100,7 @@ const TextInput = ({
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -151,7 +151,7 @@ const TextInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: isCompleted ? colors.primary[50] : colors.coolNeutral[70],
             padding: 0,
           }}

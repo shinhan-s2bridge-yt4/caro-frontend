@@ -1,53 +1,85 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { CATEGORIES, CategoryKey } from '@/constants/categories';
 import { colors, typography, borderRadius } from '@/theme';
 
-interface CategoryProps {
-  selected: CategoryKey;
-  onSelect: (key: CategoryKey) => void;
+type CategoryItem<T extends string = CategoryKey> = {
+  key: T;
+  label: string;
+};
+
+interface CategoryProps<T extends string = CategoryKey> {
+  selected: T;
+  onSelect: (key: T) => void;
+  categories?: CategoryItem<T>[];
+  variant?: 'default' | 'store';
+  dividerAfterIndex?: number;
 }
 
-const Category = ({ selected, onSelect }: CategoryProps) => {
+const Category = <T extends string = CategoryKey>({ selected, onSelect, categories, variant = 'default', dividerAfterIndex }: CategoryProps<T>) => {
+  const items = (categories ?? CATEGORIES) as CategoryItem<T>[];
+
+  // variant에 따른 스타일
+  const getSelectedBgColor = () => colors.primary[50];
+  const getSelectedTextColor = () => colors.background.default;
+  const getUnselectedBgColor = () => variant === 'store' ? colors.coolNeutral[10] : colors.background.default;
+  const getUnselectedTextColor = () => variant === 'store' ? colors.coolNeutral[40] : colors.coolNeutral[40];
+
+  const gap = variant === 'store' ? 12 : 8;
+
   return (
-    <View
-      style={{
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
         flexDirection: 'row',
-        gap: 12,
+        gap,
+        alignItems: 'center',
       }}
     >
-      {CATEGORIES.map((category) => {
+      {items.map((category, index) => {
         const isSelected = selected === category.key;
+        const showDivider = dividerAfterIndex !== undefined && index === dividerAfterIndex;
 
         return (
-          <Pressable
-            key={category.key}
-            onPress={() => onSelect(category.key)}
-            style={{
-              height: 36,
-              paddingHorizontal: 12,
-              borderRadius: borderRadius.md,  // 12px
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: isSelected
-                ? colors.primary[50]        // 선택
-                : colors.background.default,   // 미선택
-            }}
-          >
-            <Text
+          <View key={category.key} style={{ flexDirection: 'row', alignItems: 'center', gap }}>
+            <Pressable
+              onPress={() => onSelect(category.key)}
               style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body3Semibold,
-                color: isSelected
-                  ? colors.background.default  // 흰색
-                  : colors.coolNeutral[40], // 회색
+                height: 36,
+                paddingHorizontal: 12,
+                borderRadius: borderRadius.md,  // 12px
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isSelected
+                  ? getSelectedBgColor()        // 선택
+                  : getUnselectedBgColor(),   // 미선택
               }}
             >
-              {category.label}
-            </Text>
-          </Pressable>
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body2Semibold,
+                  color: isSelected
+                    ? getSelectedTextColor()  // 선택 글자색
+                    : getUnselectedTextColor(), // 미선택 글자색
+                }}
+              >
+                {category.label}
+              </Text>
+            </Pressable>
+            {showDivider && (
+              <View
+                style={{
+                  width: 2,
+                  height: 37,
+                  backgroundColor: colors.coolNeutral[10],
+                }}
+              />
+            )}
+          </View>
         );
       })}
-    </View>
+    </ScrollView>
   );
 };
 

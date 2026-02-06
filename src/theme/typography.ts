@@ -6,6 +6,10 @@ export const typography = {
 
   // Font Sizes
   fontSize: {
+    // Title
+    T1: 32,  // Title 1
+    T2: 30,  // Title 2
+
     // Headings
     h1: 28,        // Heading 1
     h2: 24,        // Heading 2
@@ -28,124 +32,164 @@ export const typography = {
     bold: '700',
   },
 
-  // Line Heights (132% = 1.32, 150% = 1.5)
-  lineHeight: {
-    heading: 1.32,   // 132% (Heading 1, 2, 3, Body 1)
-    body: 1.5,       // 150% (Body 2, Body 3, Captions)
-  },
-
-  // Letter Spacing (자간)
-  // React Native는 픽셀 단위를 사용하므로 퍼센트를 픽셀로 변환
-  // 공식: fontSize * (letterSpacing% / 100)
-  letterSpacing: {
-    tightest: -0.0236,  // -2.36% (숫자/특수문자용)
-    tight: -0.02,       // -2%
-    normal: -0.01,      // -1%
-    none: 0,            // 0%
-  },
-
   // 각 스타일의 완전한 정의
   styles: {
+    // Title 1
+    T1Bold: {
+      fontSize: 32,
+      lineHeight: 42.24,
+      fontWeight: '700' as const,
+      letterSpacing: -0.755,
+    },
+    T1Semibold: {
+      fontSize: 32,
+      lineHeight: 42.24,
+      fontWeight: '600' as const,
+      letterSpacing: -0.755,
+    },
+    T1Medium: {
+      fontSize: 32,
+      lineHeight: 42.24,
+      fontWeight: '500' as const,
+      letterSpacing: -0.755,
+    },
+    T1Regular: {
+      fontSize: 32,
+      lineHeight: 42.24,
+      fontWeight: '400' as const,
+      letterSpacing: -0.755,
+    },
+
+    // Title 2
+    T2Bold: {
+      fontSize: 30,
+      lineHeight: 39.6,
+      fontWeight: '700' as const,
+      letterSpacing: -0.708,
+    },
+    T2Semibold: {
+      fontSize: 30,
+      lineHeight: 39.6,
+      fontWeight: '600' as const,
+      letterSpacing: -0.708,
+    },
+    T2Medium: {
+      fontSize: 30,
+      lineHeight: 39.6,
+      fontWeight: '500' as const,
+      letterSpacing: -0.708,
+    },
+    T2Regular: {
+      fontSize: 30,
+      lineHeight: 39.6,
+      fontWeight: '400' as const,
+      letterSpacing: -0.708,
+    },
+
     // Heading 1
     h1Bold: {
       fontSize: 28,
-      lineHeight: 28 * 1.32, // 36.96
+      lineHeight: 36.96,
       fontWeight: '700' as const,
-      letterSpacing: 28 * -0.0236,  // -2.36%
+      letterSpacing: -0.661,
     },
     h1Semibold: {
       fontSize: 28,
-      lineHeight: 28 * 1.32,
+      lineHeight: 36.96,
       fontWeight: '600' as const,
-      letterSpacing: 28 * -0.0236,
+      letterSpacing: -0.661,
     },
     h1Medium: {
       fontSize: 28,
-      lineHeight: 28 * 1.32,
+      lineHeight: 36.96,
       fontWeight: '500' as const,
-      letterSpacing: 28 * -0.0236,
+      letterSpacing: -0.661,
     },
     h1Regular: {
       fontSize: 28,
-      lineHeight: 28 * 1.32,
+      lineHeight: 36.96,
       fontWeight: '400' as const,
-      letterSpacing: 28 * -0.0236,
+      letterSpacing: -0.661,
     },
 
     // Heading 2
     h2Bold: {
       fontSize: 24,
-      lineHeight: 24 * 1.32, // 31.68
+      lineHeight: 31.68,
       fontWeight: '700' as const,
-      letterSpacing: 24 * -0.02,  // -2%
+      letterSpacing: -0.48,
     },
     h2Semibold: {
       fontSize: 24,
-      lineHeight: 24 * 1.32,
+      lineHeight: 31.68,
       fontWeight: '600' as const,
-      letterSpacing: 24 * -0.02,
+      letterSpacing: -0.48,
     },
     h2Medium: {
       fontSize: 24,
-      lineHeight: 24 * 1.32,
+      lineHeight: 31.68,
       fontWeight: '500' as const,
-      letterSpacing: 24 * -0.02,
+      letterSpacing: -0.48,
     },
     h2Regular: {
       fontSize: 24,
-      lineHeight: 24 * 1.32,
+      lineHeight: 31.68,
       fontWeight: '400' as const,
-      letterSpacing: 24 * -0.02,
+      letterSpacing: -0.48,
     },
 
     // Heading 3
     h3Bold: {
       fontSize: 20,
-      lineHeight: 20 * 1.32, // 26.4
+      lineHeight: 27.2,
       fontWeight: '700' as const,
-      letterSpacing: 20 * -0.01, // -1%
+      letterSpacing: -0.2,
     },
     h3Semibold: {
       fontSize: 20,
-      lineHeight: 20 * 1.32,
+      lineHeight: 27.2,
       fontWeight: '600' as const,
-      letterSpacing: 20 * -0.01,
+      letterSpacing: -0.2,
     },
     h3Medium: {
       fontSize: 20,
-      lineHeight: 20 * 1.32,
+      lineHeight: 27.2,
       fontWeight: '500' as const,
-      letterSpacing: 20 * -0.01,
+      letterSpacing: -0.2,
     },
     h3Regular: {
       fontSize: 20,
-      lineHeight: 20 * 1.32,
+      lineHeight: 27.2,
       fontWeight: '400' as const,
-      letterSpacing: 20 * -0.01,
+      letterSpacing: -0.2,
     },
 
     // Body 1
     body1Bold: {
       fontSize: 18,
-      lineHeight: 18 * 1.32, // 23.76
+      fontStyle: 'normal',
+      lineHeight: 24.48,
       fontWeight: '700' as const,
       letterSpacing: 18 * -0.01,
     },
     body1Semibold: {
       fontSize: 18,
-      lineHeight: 18 * 1.32,
+      fontStyle: 'normal',
+      lineHeight: 24.48,
       fontWeight: '600' as const,
       letterSpacing: 18 * -0.01,
     },
     body1Medium: {
       fontSize: 18,
-      lineHeight: 18 * 1.32,
+      fontStyle: 'normal',
+      lineHeight: 24.48,
       fontWeight: '500' as const,
       letterSpacing: 18 * -0.01,
     },
     body1Regular: {
       fontSize: 18,
-      lineHeight: 18 * 1.32,
+      fontStyle: 'normal',
+      lineHeight: 24.48,
       fontWeight: '400' as const,
       letterSpacing: 18 * -0.01,
     },
@@ -153,31 +197,36 @@ export const typography = {
     // Body 2
     body2Bold: {
       fontSize: 16,
-      lineHeight: 16 * 1.5, // 24
+      fontStyle: 'normal',
+      lineHeight: 24,
       fontWeight: '700' as const,
       letterSpacing: 16 * -0.01,
     },
     body2Semibold: {
       fontSize: 16,
-      lineHeight: 16 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 24,
       fontWeight: '600' as const,
       letterSpacing: 16 * -0.01,
     },
     body2Medium: {
       fontSize: 16,
-      lineHeight: 16 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 24,
       fontWeight: '500' as const,
       letterSpacing: 16 * -0.01,
     },
     body2Regular: {
       fontSize: 16,
-      lineHeight: 16 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 24,
       fontWeight: '400' as const,
       letterSpacing: 16 * -0.01,
     },
     body2Light: {
       fontSize: 16,
-      lineHeight: 16 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 24,
       fontWeight: '300' as const,
       letterSpacing: 16 * -0.01,
     },
@@ -185,31 +234,36 @@ export const typography = {
     // Body 3
     body3Bold: {
       fontSize: 14,
-      lineHeight: 14 * 1.5, // 21
+      fontStyle: 'normal',
+      lineHeight: 21,
       fontWeight: '700' as const,
       letterSpacing: 14 * -0.01,
     },
     body3Semibold: {
       fontSize: 14,
-      lineHeight: 14 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 21,
       fontWeight: '600' as const,
       letterSpacing: 14 * -0.01,
     },
     body3Medium: {
       fontSize: 14,
-      lineHeight: 14 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 21,
       fontWeight: '500' as const,
       letterSpacing: 14 * -0.01,
     },
     body3Regular: {
       fontSize: 14,
-      lineHeight: 14 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 21,
       fontWeight: '400' as const,
       letterSpacing: 14 * -0.01,
     },
     body3Light: {
       fontSize: 14,
-      lineHeight: 14 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 21,
       fontWeight: '300' as const,
       letterSpacing: 14 * -0.01,
     },
@@ -217,33 +271,33 @@ export const typography = {
     // Captions
     captionBold: {
       fontSize: 12,
-      lineHeight: 12 * 1.5, // 18
+      fontStyle: 'normal',
+      lineHeight: 18,
       fontWeight: '700' as const,
-      letterSpacing: 12 * 0, // 0%
     },
     captionSemibold: {
       fontSize: 12,
-      lineHeight: 12 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 18,
       fontWeight: '600' as const,
-      letterSpacing: 12 * 0,
     },
     captionMedium: {
       fontSize: 12,
-      lineHeight: 12 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 18,
       fontWeight: '500' as const,
-      letterSpacing: 12 * 0,
     },
     captionRegular: {
       fontSize: 12,
-      lineHeight: 12 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 18,
       fontWeight: '400' as const,
-      letterSpacing: 12 * 0,
     },
     captionLight: {
       fontSize: 12,
-      lineHeight: 12 * 1.5,
+      fontStyle: 'normal',
+      lineHeight: 18,
       fontWeight: '300' as const,
-      letterSpacing: 12 * 0,
     },
   },
 } as const;

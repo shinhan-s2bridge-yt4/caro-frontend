@@ -97,7 +97,7 @@ export default function VehicleNumberScreen() {
                 style={{
                   marginTop: 8,
                   fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Regular,
+                  ...typography.styles.body2Regular,
                   color: colors.coolNeutral[40],
                 }}
               >

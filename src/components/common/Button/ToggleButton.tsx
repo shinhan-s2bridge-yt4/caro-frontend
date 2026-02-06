@@ -96,11 +96,10 @@ export const ToggleButton = ({
               ...(shouldUnsetFlex ? { flex: undefined, flexGrow: 0, flexShrink: 0 } : null),
             }}
           >
-            {shouldShowIcon ? <Icon width={16} height={16} /> : null}
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionSemibold,
+                ...typography.styles.body3Semibold,
                 color: isActive ? colors.primary[50] : colors.coolNeutral[10],
                 ...(shouldPadInactiveTextRight ? { paddingVertical: 4, paddingRight: 8 } : null),
                 ...(shouldPadInactiveTextLeft ? { paddingVertical: 4, paddingLeft: 8 } : null),
@@ -108,6 +107,7 @@ export const ToggleButton = ({
             >
               {opt.label}
             </Text>
+            {shouldShowIcon ? <Icon width={16} height={16} /> : null}
           </Pressable>
         );
       })}

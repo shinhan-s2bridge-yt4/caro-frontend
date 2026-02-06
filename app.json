@@ -13,7 +13,16 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.caro.app",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
+        "NSBluetoothPeripheralUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
+        "NSLocationWhenInUseUsageDescription": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
+        "NSLocationAlwaysUsageDescription": "백그라운드에서도 운행 기록을 수집합니다.",
+        "UIBackgroundModes": ["location", "bluetooth-central"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,14 +30,36 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.caro.app",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
+          "locationAlwaysPermission": "백그라운드에서도 운행 기록을 수집합니다.",
+          "locationWhenInUsePermission": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ]
   }
 }

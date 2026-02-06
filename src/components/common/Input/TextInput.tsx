@@ -38,7 +38,7 @@ const TextInput = ({
 
   // 배경 색상 결정
   const getBackgroundColor = () => {
-    if (disabled) return 'transparent';
+    if (disabled) return colors.background.default;
     return colors.coolNeutral[10];
   };
 
@@ -66,7 +66,7 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ width: '100%', maxWidth: 334 }}>
+    <View style={{ width: '100%' }}>
       {/* 라벨 */}
       <View
         style={{
@@ -80,7 +80,7 @@ const TextInput = ({
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -128,15 +128,15 @@ const TextInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: colors.coolNeutral[70],
             padding: 0,
           }}
           {...props}
         />
 
-        {/* X 버튼 - 값이 있으면 표시 */}
-        {hasValue && !disabled && (
+        {/* X 버튼 - 포커스 상태이고 값이 있으면 표시 */}
+        {hasValue && !disabled && isFocused && (
           <Pressable
             onPressIn={handleClear}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

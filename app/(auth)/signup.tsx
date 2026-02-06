@@ -168,11 +168,11 @@ export default function SignupScreen() {
                 style={{
                   marginTop: 8,
                   fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Regular,
+                  ...typography.styles.body2Regular,
                   color: colors.coolNeutral[40],
                 }}
               >
-                사용할 아이디와 패스워드를 입력해주세요
+                안전한 차량 관리를 위해 정보가 필요해요
               </Text>
             </View>
 

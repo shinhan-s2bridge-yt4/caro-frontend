@@ -86,10 +86,12 @@ module.exports = {
        * Typography (size + lineHeight only)
        ======================= */
       fontSize: {
+        T1: ['32px', { lineHeight: '42.24px' }],
+        T2: ['30px', { lineHeight: '39.6px' }],
         h1: ['28px', { lineHeight: '36.96px' }],
         h2: ['24px', { lineHeight: '31.68px' }],
-        h3: ['20px', { lineHeight: '26.4px' }],
-        body1: ['18px', { lineHeight: '23.76px' }],
+        h3: ['20px', { lineHeight: '27.2px' }],
+        body1: ['18px', { lineHeight: '24.48px' }],
         body2: ['16px', { lineHeight: '24px' }],
         body3: ['14px', { lineHeight: '21px' }],
         caption: ['12px', { lineHeight: '18px' }],
