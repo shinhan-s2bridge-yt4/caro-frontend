@@ -11,6 +11,7 @@ import { useDriveTracking } from '@/hooks/useDriveTracking';
 import { useProfileStore } from '@/stores/profileStore';
 
 import BCarIcon from '../assets/icons/bcar.svg';
+import GCarIcon from '../assets/icons/gcar.svg';
 import CarOcarIcon from '../assets/icons/carocar.svg';
 import RightIcon from '../assets/icons/RightIcon.svg';
 import HandIcon from '../assets/icons/hand.svg';
@@ -19,12 +20,26 @@ import PauseIcon from '../assets/icons/pause.svg';
 import BCoinIcon from '../assets/icons/bcoin.svg';
 import XIcon from '../assets/icons/x_icon.svg';
 import PointIcon from '../assets/icons/point.svg';
+import InfoIcon from '../assets/icons/info.svg';
+import BCheckIcon from '../assets/icons/bcheck.svg';
+import WCheckIcon from '../assets/icons/wcheck.svg';
+import WXIcon from '../assets/icons/w_x.svg';
+
+// 차량 목록 더미 데이터
+const DUMMY_CARS = [
+  { id: 1, modelName: '렉서스 ES300h', registrationNumber: '123 가 4568' },
+  { id: 2, modelName: '더 뉴 아이오닉', registrationNumber: '789 가 1234' },
+  { id: 3, modelName: '렉서스 ES300h', registrationNumber: '345 가 4321' },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
   const [topToggle, setTopToggle] = useState<ToggleValue>(0);
   const [isStopModalVisible, setIsStopModalVisible] = useState(false);
   const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const [isCarSelectModalVisible, setIsCarSelectModalVisible] = useState(false);
+  const [selectedCarId, setSelectedCarId] = useState(DUMMY_CARS[0].id);
 
   // 운행 상태 관리
   const {
@@ -95,6 +110,17 @@ export default function HomeScreen() {
       { label: '포인트', icon: BCoinIcon, activeIcon: BCoinIcon },
     ];
   }, []);
+
+  // 현재 선택된 차량 정보
+  const selectedCar = useMemo(() => {
+    return DUMMY_CARS.find((car) => car.id === selectedCarId) || DUMMY_CARS[0];
+  }, [selectedCarId]);
+
+  // 차량 선택 핸들러
+  const handleCarSelect = (carId: number) => {
+    setSelectedCarId(carId);
+    setIsCarSelectModalVisible(false);
+  };
 
   // 프로필 스토어에서 이름 가져오기
   const userName = useProfileStore((s) => s.name) || '사용자';
@@ -201,6 +227,240 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                   </View>
+                </View>
+
+                {/* 차량 선택 버튼 */}
+                <View style={{ marginTop: 12, position: 'relative' }}>
+                  <Pressable
+                    onPress={() => setIsCarSelectModalVisible(!isCarSelectModalVisible)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: colors.primary[10],
+                      borderRadius: 12,
+                      paddingVertical: 8,
+                      paddingHorizontal: 20,
+                      gap: 12,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="select-car"
+                  >
+                    <BCarIcon width={20} height={20} />
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body3Semibold,
+                        color: colors.primary[50],
+                      }}
+                    >
+                      {selectedCar.modelName}
+                    </Text>
+                    <View
+                      style={{
+                        width: 1.4,
+                        height: 17,
+                        backgroundColor: colors.primary[50],
+                      }}
+                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body3Semibold,
+                          color: colors.primary[50],
+                        }}
+                      >
+                        {selectedCar.registrationNumber}
+                      </Text>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setIsTooltipVisible(!isTooltipVisible);
+                        }}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="car-info"
+                      >
+                        <InfoIcon width={16} height={16} />
+                      </Pressable>
+                    </View>
+                  </Pressable>
+
+                  {/* 툴팁 */}
+                  {isTooltipVisible && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 40,
+                        marginTop: 8,
+                        zIndex: 100,
+                        flexShrink: 0,
+                        minWidth: 220,
+                      }}
+                    >
+                      {/* 툴팁 화살표 */}
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: 10,
+                          width: 0,
+                          height: 0,
+                          borderLeftWidth: 6,
+                          borderRightWidth: 6,
+                          borderBottomWidth: 6,
+                          borderLeftColor: 'transparent',
+                          borderRightColor: 'transparent',
+                          borderBottomColor: colors.primary[80],
+                          zIndex: 101,
+                        }}
+                      />
+                      <View
+                        style={{
+                          backgroundColor: colors.primary[80],
+                          borderRadius: 8,
+                          padding: 10,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexShrink: 0,
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[10],
+                            flexShrink: 0,
+                          }}
+                        >
+                          눌러서 보유한 차량을 변경할 수 있어요
+                        </Text>
+                        <Pressable
+                          onPress={() => setIsTooltipVisible(false)}
+                          hitSlop={4}
+                          accessibilityRole="button"
+                          accessibilityLabel="close-tooltip"
+                        >
+                          <WXIcon width={16} height={16} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* 차량 선택 드롭다운 */}
+                  {isCarSelectModalVisible && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: colors.coolNeutral[20],
+                        borderRadius: 12,
+                        backgroundColor: colors.coolNeutral[10],
+                        overflow: 'hidden',
+                        zIndex: 200,
+                        shadowColor: '#000',
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 4 },
+                        elevation: 5,
+                      }}
+                    >
+                      {/* 드롭다운 헤더 */}
+                      <View
+                        style={{
+                          paddingVertical: 14,
+                          paddingHorizontal: 20,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.coolNeutral[20],
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Semibold,
+                            color: colors.coolNeutral[40],
+                          }}
+                        >
+                          차량 변경
+                        </Text>
+                      </View>
+
+                      {/* 차량 목록 */}
+                      {DUMMY_CARS.map((car) => {
+                        const isSelected = car.id === selectedCarId;
+                        return (
+                          <Pressable
+                            key={car.id}
+                            onPress={() => handleCarSelect(car.id)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingVertical: 14,
+                              paddingHorizontal: 12,
+                              backgroundColor: isSelected ? colors.primary[10] : 'transparent',
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`select-car-${car.id}`}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              {isSelected ? (
+                                <BCarIcon width={20} height={20} />
+                              ) : (
+                                <GCarIcon width={20} height={20} />
+                              )}
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Semibold,
+                                  color: isSelected ? colors.primary[50] : colors.coolNeutral[40],
+                                  width: 80,
+                                  marginLeft: 8,
+                                }}
+                              >
+                                {car.modelName}
+                              </Text>
+                              <View
+                                style={{
+                                  width: 1,
+                                  height: 17,
+                                  backgroundColor: isSelected ? colors.primary[40] : colors.coolNeutral[30],
+                                  marginHorizontal: 12,
+                                }}
+                              />
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Semibold,
+                                  color: isSelected ? colors.primary[50] : colors.coolNeutral[40],
+                                }}
+                              >
+                                {car.registrationNumber}
+                              </Text>
+                            </View>
+                            <View
+                              style={{ }}
+                            >
+                              {isSelected ? (
+                                <BCheckIcon width={16} height={16} />
+                              ) : (
+                                <WCheckIcon width={16} height={16} />
+                              )}
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
 
                 <View style={{ marginTop: 16, flexDirection: 'row', gap: 12 }}>

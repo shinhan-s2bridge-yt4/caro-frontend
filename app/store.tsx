@@ -489,6 +489,7 @@ export default function StoreScreen() {
   const [selectedCoupon, setSelectedCoupon] = useState<MyCoupon | null>(null);
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [isUsageGuideExpanded, setIsUsageGuideExpanded] = useState(false);
+  const [isBarcodeLarge, setIsBarcodeLarge] = useState(false);
 
   // API에서 포인트 정보 가져오기
   useEffect(() => {
@@ -572,6 +573,7 @@ export default function StoreScreen() {
   const closeCouponModal = () => {
     setIsCouponModalOpen(false);
     setSelectedCoupon(null);
+    setIsBarcodeLarge(false);
   };
 
   return (
@@ -590,15 +592,32 @@ export default function StoreScreen() {
             style={{
               backgroundColor: colors.coolNeutral[10],
               borderRadius: 20,
-              paddingTop: 36,
+              paddingTop: 20,
               paddingBottom: 24,
               paddingHorizontal: 20,
               width: '100%',
               maxWidth: 355,
             }}
           >
+            {/* X 아이콘 영역 */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'flex-end',
+                marginBottom: 20,
+              }}
+            >
+              <Pressable
+                onPress={closeCouponModal}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="close-modal"
+              >
+                <XIcon width={24} height={24} />
+              </Pressable>
+            </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {selectedCoupon && (
+              {selectedCoupon && !isBarcodeLarge && (
                 <View style={{ gap: 16 }}>
                   {/* 쿠폰 상단 영역 */}
                   <View
@@ -769,6 +788,7 @@ export default function StoreScreen() {
                   {/* 바코드 크게 보기 버튼 + 사용 안내 */}
                   <View style={{ gap: 24 }}>
                     <Pressable
+                      onPress={() => setIsBarcodeLarge(true)}
                       style={{
                         width: '100%',
                         height: 52,
@@ -888,6 +908,91 @@ export default function StoreScreen() {
                     )}
                     </View>
                   </View>
+                </View>
+              )}
+
+              {/* 바코드 크게 보기 */}
+              {selectedCoupon && isBarcodeLarge && (
+                <View style={{ gap: 24 }}>
+                  {/* 쿠폰 제목 */}
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.h2Semibold,
+                      color: colors.coolNeutral[90],
+                      textAlign: 'center',
+                    }}
+                  >
+                    {selectedCoupon.name.replace('[스타벅스] ', '[스타벅스]\n')}
+                  </Text>
+
+                  {/* 큰 바코드 */}
+                  <View
+                    style={{
+                      width: '100%',
+                      backgroundColor: colors.background.default,
+                      borderRadius: borderRadius.md,
+                      borderWidth: 1,
+                      borderColor: colors.coolNeutral[20],
+                      paddingVertical: 40,
+                      paddingHorizontal: 20,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 370,
+                    }}
+                  >
+                    {/* 바코드 + 번호 전체를 90도 오른쪽으로 회전 */}
+                    <View
+                      style={{
+                        transform: [{ rotate: '90deg' }],
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <Barcode
+                        value={selectedCoupon.barcode}
+                        format="CODE128"
+                        height={150}
+                        maxWidth={310}
+                        singleBarWidth={5}
+                        lineColor="#000000"
+                        backgroundColor="#FFFFFF"
+                        onError={(err: Error) => console.log('Barcode error:', err)}
+                      />
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body2Medium,
+                          color: colors.coolNeutral[80],
+                        }}
+                      >
+                        {selectedCoupon.barcode}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 바코드 작게 보기 버튼 */}
+                  <Pressable
+                    onPress={() => setIsBarcodeLarge(false)}
+                    style={{
+                      width: '100%',
+                      height: 52,
+                      borderRadius: borderRadius.md,
+                      backgroundColor: colors.primary[50],
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Semibold,
+                        color: colors.coolNeutral[10],
+                      }}
+                    >
+                      바코드 작게 보기
+                    </Text>
+                  </Pressable>
                 </View>
               )}
             </ScrollView>
