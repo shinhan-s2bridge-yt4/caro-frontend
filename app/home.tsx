@@ -22,7 +22,7 @@ import XIcon from '../assets/icons/x_icon.svg';
 import PointIcon from '../assets/icons/point.svg';
 import InfoIcon from '../assets/icons/info.svg';
 import BCheckIcon from '../assets/icons/bcheck.svg';
-import WCheckIcon from '../assets/icons/wcheck.svg';
+import GCheckIcon from '../assets/icons/gcheck.svg';
 import WXIcon from '../assets/icons/w_x.svg';
 
 // 차량 목록 더미 데이터
@@ -453,7 +453,7 @@ export default function HomeScreen() {
                               {isSelected ? (
                                 <BCheckIcon width={16} height={16} />
                               ) : (
-                                <WCheckIcon width={16} height={16} />
+                                <GCheckIcon width={16} height={16} />
                               )}
                             </View>
                           </Pressable>

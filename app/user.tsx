@@ -7,6 +7,7 @@ import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import { useSignupDraftStore } from '@/stores/signupDraftStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import TextInput from '@/components/common/Input/TextInput';
 
@@ -70,19 +71,38 @@ export default function UserScreen() {
     setIsCarModelDropdownOpen(false);
   };
 
-  const { setProfile } = useProfileStore();
+  const { setProfile, updateProfile } = useProfileStore();
+  const { setMode, clearDraft } = useSignupDraftStore();
+  const [isSaving, setIsSaving] = useState(false);
   
-  const handleSaveProfile = () => {
-    // 스토어에 프로필 데이터 업데이트 (로컬 상태만, 추후 API 연동 필요)
-    setProfile({
-      name: editData.name,
-      primaryCar: primaryCar ? {
-        ...primaryCar,
-        modelName: editData.carModel,
-        registrationNumber: editData.carNumber,
-      } : null,
-    });
+  const handleSaveProfile = async () => {
+    if (!accessToken || !primaryCar) return;
+    
+    setIsSaving(true);
+    try {
+      await updateProfile(accessToken, {
+        name: editData.name,
+        car: {
+          id: primaryCar.id,
+          registrationNumber: editData.carNumber,
+        },
+      });
+      setIsEditModalVisible(false);
+    } catch (e) {
+      Alert.alert('수정 실패', '프로필 수정에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddNewVehicle = () => {
+    // 모달 닫기
     setIsEditModalVisible(false);
+    setIsCarModelDropdownOpen(false);
+    // 차량 추가 모드로 설정 후 플로우 시작
+    clearDraft();
+    setMode('add-vehicle');
+    router.push('/(auth)/vehicle-brand');
   };
 
   const handleLogoutPress = () => {
@@ -542,6 +562,7 @@ export default function UserScreen() {
                 >
                   {/* 새로운 차 추가하기 */}
                   <Pressable
+                    onPress={handleAddNewVehicle}
                     style={{
                       paddingVertical: 14,
                       paddingHorizontal: 16,
@@ -641,11 +662,12 @@ export default function UserScreen() {
               {/* 저장하기 버튼 */}
               <Pressable
                 onPress={handleSaveProfile}
+                disabled={isSaving}
                 style={{
                   flex: 1,
                   height: 48,
                   borderRadius: borderRadius.md,
-                  backgroundColor: colors.primary[50],
+                  backgroundColor: isSaving ? colors.coolNeutral[30] : colors.primary[50],
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -657,7 +679,7 @@ export default function UserScreen() {
                     color: colors.coolNeutral[10],
                   }}
                 >
-                  저장하기
+                  {isSaving ? '저장 중...' : '저장하기'}
                 </Text>
               </Pressable>
             </View>

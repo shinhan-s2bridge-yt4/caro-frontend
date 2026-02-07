@@ -28,6 +28,8 @@ export default function VehicleCompleteScreen() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const mode = useSignupDraftStore((s) => s.mode);
   const account = useSignupDraftStore((s) => s.account);
   const vehicle = useSignupDraftStore((s) => s.vehicle);
   const clearDraft = useSignupDraftStore((s) => s.clearDraft);
@@ -52,11 +54,7 @@ export default function VehicleCompleteScreen() {
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    if (!account) {
-      Alert.alert('회원가입 정보가 없어요', '처음 화면에서 다시 진행해주세요.');
-      router.replace('/(auth)/signup');
-      return;
-    }
+    // 차량 정보 검증 (공통)
     if (
       vehicle.modelId == null ||
       !vehicle.registrationNumber ||
@@ -64,6 +62,50 @@ export default function VehicleCompleteScreen() {
     ) {
       Alert.alert('차량 정보가 부족해요', '차량 정보를 다시 입력해주세요.');
       router.replace('/(auth)/vehicle-brand');
+      return;
+    }
+
+    // 마이페이지에서 차량 추가 모드
+    if (mode === 'add-vehicle') {
+      if (!accessToken) {
+        Alert.alert('로그인이 필요해요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+
+        await registerMyCar({
+          accessToken,
+          payload: {
+            modelId: vehicle.modelId,
+            registrationNumber: vehicle.registrationNumber,
+            mileage: vehicle.mileage,
+          },
+        });
+
+        clearDraft();
+        Alert.alert('차량 추가 완료', '새 차량이 추가되었습니다.');
+        router.replace('/user');
+      } catch (e: unknown) {
+        const message =
+          axios.isAxiosError(e) && e.response?.data?.message
+            ? String(e.response.data.message)
+            : e instanceof Error
+              ? e.message
+              : '차량 추가 중 오류가 발생했습니다.';
+        Alert.alert('차량 추가 실패', message);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // 회원가입 모드 (기존 로직)
+    if (!account) {
+      Alert.alert('회원가입 정보가 없어요', '처음 화면에서 다시 진행해주세요.');
+      router.replace('/(auth)/signup');
       return;
     }
 
@@ -184,13 +226,20 @@ export default function VehicleCompleteScreen() {
           {/* 하단 버튼 */}
           <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <MainButton
-              label={isSubmitting ? '처리 중...' : '시작하기'}
+              label={isSubmitting ? '처리 중...' : mode === 'add-vehicle' ? '등록하기' : '시작하기'}
               alwaysPrimary
               disabled={isSubmitting}
               onPress={handleSubmit}
             />
             <Pressable
-              onPress={() => router.replace('/(auth)/vehicle-brand')}
+              onPress={() => {
+                if (mode === 'add-vehicle') {
+                  clearDraft();
+                  router.replace('/user');
+                } else {
+                  router.replace('/(auth)/vehicle-brand');
+                }
+              }}
               style={{
                 marginTop: 12,
                 width: 335,
@@ -208,7 +257,7 @@ export default function VehicleCompleteScreen() {
                   color: colors.coolNeutral[50],
                 }}
               >
-                수정할래요
+                {mode === 'add-vehicle' ? '취소' : '수정할래요'}
               </Text>
             </Pressable>
           </View>

@@ -56,7 +56,7 @@ export async function registerMyCar(params: {
   }
 
   const { data } = await axios.post<ApiResponse<MyCar>>(
-    `${baseUrl}/api/v1/my/car`,
+    `${baseUrl}/api/v1/cars`,
     params.payload,
     {
       headers: {
