@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
+import { useMyCarStore } from '@/stores/myCarStore';
 import TextInput from '@/components/common/Input/TextInput';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
@@ -17,11 +18,9 @@ import GRightIcon from '../assets/icons/GRightIcon.svg';
 import XIcon from '../assets/icons/x_icon.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
 import PlusIcon from '../assets/icons/plus.svg';
+import BCheckIcon from '../assets/icons/bcheck.svg';
 
 const SCREEN_MAX_WIDTH = 375;
-
-// 차종 목록
-const CAR_MODELS = ['더 올 뉴 그랜저(GN7)', '쏘나타(DN8)', '제네시스 G70'];
 
 export default function UserScreen() {
   const router = useRouter();
@@ -29,39 +28,44 @@ export default function UserScreen() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { name, email, primaryCar, loadProfile } = useProfileStore();
   const { summary, fetchSummary } = useDrivingRecordStore();
+  const { cars, loadMyCars } = useMyCarStore();
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isCarNumberFocused, setIsCarNumberFocused] = useState(false);
   const [isCarModelDropdownOpen, setIsCarModelDropdownOpen] = useState(false);
   
-  // API에서 프로필 데이터 및 운행 요약 로드
+  // API에서 프로필 데이터, 운행 요약, 차량 목록 로드
   useEffect(() => {
     if (accessToken) {
       loadProfile(accessToken);
       fetchSummary({ accessToken });
+      loadMyCars(accessToken);
     }
-  }, [accessToken, loadProfile, fetchSummary]);
+  }, [accessToken, loadProfile, fetchSummary, loadMyCars]);
   
   // 화면 표시용 프로필 데이터
   const profileData = {
     name: name || '사용자',
     email: email || '',
-    carModel: primaryCar?.modelName || '',
+    carModel: primaryCar ? `${primaryCar.brandName} ${primaryCar.modelName}` : '',
     carNumber: primaryCar?.registrationNumber || '',
   };
   
   // 수정 중인 데이터 상태
   const [editData, setEditData] = useState({
     name: '',
-    carModel: '',
+    selectedCarId: null as number | null,
     carNumber: '',
   });
+
+  // 현재 선택된 차량 정보
+  const selectedEditCar = cars.find((c) => c.id === editData.selectedCarId) || null;
 
   const handleOpenEditModal = () => {
     setEditData({
       name: profileData.name,
-      carModel: profileData.carModel,
-      carNumber: profileData.carNumber,
+      selectedCarId: primaryCar?.id ?? (cars.length > 0 ? cars[0].id : null),
+      carNumber: primaryCar?.registrationNumber || '',
     });
     setIsEditModalVisible(true);
   };
@@ -76,17 +80,42 @@ export default function UserScreen() {
   const [isSaving, setIsSaving] = useState(false);
   
   const handleSaveProfile = async () => {
-    if (!accessToken || !primaryCar) return;
+    if (!accessToken) return;
+    
+    // 변경된 필드만 request body에 포함
+    const request: { name?: string; car?: { id: number; registrationNumber: string } } = {};
+    
+    const originalName = name || '사용자';
+    if (editData.name !== originalName) {
+      request.name = editData.name;
+    }
+    
+    const originalCarId = primaryCar?.id;
+    const originalCarNumber = primaryCar?.registrationNumber || '';
+    if (
+      editData.selectedCarId &&
+      (editData.selectedCarId !== originalCarId || editData.carNumber !== originalCarNumber)
+    ) {
+      request.car = {
+        id: editData.selectedCarId,
+        registrationNumber: editData.carNumber,
+      };
+    }
+    
+    // 변경사항이 없으면 모달만 닫기
+    if (Object.keys(request).length === 0) {
+      setIsEditModalVisible(false);
+      return;
+    }
     
     setIsSaving(true);
     try {
-      await updateProfile(accessToken, {
-        name: editData.name,
-        car: {
-          id: primaryCar.id,
-          registrationNumber: editData.carNumber,
-        },
-      });
+      await updateProfile(accessToken, request);
+      // 프로필 + 차량 목록 다시 로드하여 최신 상태 반영
+      await Promise.all([
+        loadProfile(accessToken),
+        loadMyCars(accessToken),
+      ]);
       setIsEditModalVisible(false);
     } catch (e) {
       Alert.alert('수정 실패', '프로필 수정에 실패했습니다. 다시 시도해주세요.');
@@ -543,7 +572,7 @@ export default function UserScreen() {
                     color: colors.coolNeutral[70],
                   }}
                 >
-                  {editData.carModel}
+                  {selectedEditCar ? `${selectedEditCar.brandName} ${selectedEditCar.modelName}` : '차량을 선택해주세요'}
                 </Text>
                 <DownIcon width={20} height={20} />
               </Pressable>
@@ -585,31 +614,50 @@ export default function UserScreen() {
                     </Text>
                   </Pressable>
 
-                  {/* 차종 목록 */}
-                  {CAR_MODELS.map((model) => {
-                    const isSelected = model === editData.carModel;
+                  {/* 보유 차량 목록 */}
+                  {cars.map((car) => {
+                    const isSelected = car.id === editData.selectedCarId;
                     return (
                       <Pressable
-                        key={model}
+                        key={car.id}
                         onPress={() => {
-                          setEditData({ ...editData, carModel: model });
+                          setEditData({
+                            ...editData,
+                            selectedCarId: car.id,
+                            carNumber: car.registrationNumber,
+                          });
                           setIsCarModelDropdownOpen(false);
                         }}
                         style={{
                           paddingVertical: 14,
                           paddingHorizontal: 16,
                           backgroundColor: isSelected ? colors.primary[10] : 'transparent',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
                         }}
                       >
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body2Regular,
-                            color: isSelected ? colors.primary[50] : colors.coolNeutral[70],
-                          }}
-                        >
-                          {model}
-                        </Text>
+                        <View style={{ gap: 2 }}>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body2Regular,
+                              color: isSelected ? colors.primary[50] : colors.coolNeutral[70],
+                            }}
+                          >
+                            {car.brandName} {car.modelName}
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Regular,
+                              color: isSelected ? colors.primary[40] : colors.coolNeutral[40],
+                            }}
+                          >
+                            {car.registrationNumber}
+                          </Text>
+                        </View>
+                        {isSelected && <BCheckIcon width={16} height={16} />}
                       </Pressable>
                     );
                   })}
@@ -628,7 +676,7 @@ export default function UserScreen() {
                 onBlur={() => {
                   setIsCarNumberFocused(false);
                   if (!editData.carNumber.trim()) {
-                    setEditData({ ...editData, carNumber: profileData.carNumber });
+                    setEditData({ ...editData, carNumber: selectedEditCar?.registrationNumber || '' });
                   }
                 }}
               />

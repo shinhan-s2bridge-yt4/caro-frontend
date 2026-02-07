@@ -5,6 +5,34 @@ import { useDrivingStore, type LocationPoint } from '@/stores/drivingStore';
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
+// 좌표를 주소 문자열로 변환하는 역지오코딩 유틸리티
+export async function reverseGeocodeToAddress(
+  latitude: number,
+  longitude: number,
+): Promise<string> {
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+    if (results.length > 0) {
+      const addr = results[0];
+      // 한국 주소 형식: 시/도 + 구/군 + 동/읍/면 + 도로명
+      const parts = [
+        addr.region,       // 시/도
+        addr.city,         // 시/군/구
+        addr.district,     // 구/동
+        addr.street,       // 도로명
+        addr.name,         // 상세 주소
+      ].filter(Boolean);
+
+      // 중복 제거 후 합치기
+      const unique = [...new Set(parts)];
+      return unique.join(' ') || '알 수 없는 위치';
+    }
+    return '알 수 없는 위치';
+  } catch {
+    return '알 수 없는 위치';
+  }
+}
+
 // 백그라운드 위치 추적 태스크 정의
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -72,6 +100,7 @@ export function useDriveTracking(
   const currentLocation = useDrivingStore((state) => state.currentLocation);
   const updateLocation = useDrivingStore((state) => state.updateLocation);
   const incrementElapsedTime = useDrivingStore((state) => state.incrementElapsedTime);
+  const setStartLocationName = useDrivingStore((state) => state.setStartLocationName);
 
   // 위치 권한 요청
   const requestPermissions = useCallback(async (): Promise<boolean> => {
@@ -117,6 +146,23 @@ export function useDriveTracking(
 
       setIsTracking(true);
       setError(null);
+
+      // 시작 위치 저장 (역지오코딩)
+      try {
+        const initialLocation = await Location.getCurrentPositionAsync({ accuracy });
+        const startAddr = await reverseGeocodeToAddress(
+          initialLocation.coords.latitude,
+          initialLocation.coords.longitude,
+        );
+        setStartLocationName(startAddr);
+        updateLocation({
+          latitude: initialLocation.coords.latitude,
+          longitude: initialLocation.coords.longitude,
+          timestamp: initialLocation.timestamp,
+        });
+      } catch (err) {
+        console.warn('시작 위치 역지오코딩 실패:', err);
+      }
 
       // Foreground 위치 추적
       locationSubscriptionRef.current = await Location.watchPositionAsync(

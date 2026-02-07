@@ -25,8 +25,12 @@ interface DrivingState {
   locations: LocationPoint[];
   currentLocation: LocationPoint | null;
   
+  // 출발/도착 위치명 (역지오코딩 결과)
+  startLocationName: string | null;
+  
   // 액션
   setBluetoothConnected: (connected: boolean, deviceName?: string | null) => void;
+  setStartLocationName: (name: string) => void;
   startDriving: () => void;
   stopDriving: () => void;
   pauseDriving: () => void;
@@ -67,6 +71,12 @@ export const useDrivingStore = create<DrivingState>((set, get) => ({
   totalDistanceKm: 0,
   locations: [],
   currentLocation: null,
+  startLocationName: null,
+
+  // 출발 위치명 설정
+  setStartLocationName: (name) => {
+    set({ startLocationName: name });
+  },
 
   // 블루투스 연결 상태 업데이트
   setBluetoothConnected: (connected, deviceName = null) => {
@@ -91,6 +101,7 @@ export const useDrivingStore = create<DrivingState>((set, get) => ({
       elapsedSeconds: 0,
       totalDistanceKm: 0,
       locations: [],
+      startLocationName: null,
     });
   },
 
@@ -169,6 +180,7 @@ export const useDrivingStore = create<DrivingState>((set, get) => ({
       totalDistanceKm: 0,
       locations: [],
       currentLocation: null,
+      startLocationName: null,
     });
   },
 }));

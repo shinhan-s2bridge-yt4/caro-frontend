@@ -7,6 +7,7 @@ import type {
   CreateExpenseRequest,
   CreateExpenseResponse,
   ExpenseCategoryItem,
+  ExpenseSummary,
 } from '@/types/expense';
 
 function getApiBaseUrl() {
@@ -64,6 +65,33 @@ export async function createExpense(params: {
       headers: {
         Authorization: `Bearer ${params.accessToken}`,
         'Content-Type': 'application/json',
+      },
+    },
+  );
+
+  return data.data;
+}
+
+export async function getExpenseSummary(params: {
+  yearMonth?: string; // e.g. "2026-02"
+  accessToken: string;
+}): Promise<ExpenseSummary> {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error('EXPO_PUBLIC_API_BASE_URL 이 설정되어있지 않습니다.');
+  }
+  if (!params.accessToken) {
+    throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+  }
+
+  const { data } = await axios.get<ApiResponse<ExpenseSummary>>(
+    `${baseUrl}/api/v1/expenses/summary`,
+    {
+      params: {
+        ...(params.yearMonth && { yearMonth: params.yearMonth }),
+      },
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
       },
     },
   );

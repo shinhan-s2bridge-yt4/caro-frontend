@@ -6,6 +6,7 @@ export type DrivingRecord = {
   distanceKm: string;
   startLocation: string;
   endLocation: string;
+  vehicleBrandName: string;
   vehicleModelName: string;
   vehicleVariantName: string;
   earnedPoints: number;
@@ -27,4 +28,19 @@ export type DrivingSummary = {
   totalDistanceKm: number;
   totalEarnedPoints: number;
   totalDrivingCount: number;
+};
+
+export type CreateDrivingRecordRequest = {
+  memberCarId: number;
+  driveDate: string;
+  startTime: string;
+  endTime: string;
+  distanceKm: number;
+  startLocation: string;
+  endLocation: string;
+};
+
+export type CreateDrivingRecordResponse = {
+  id: number;
+  earnedPoints: number;
 };

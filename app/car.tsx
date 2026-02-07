@@ -41,8 +41,9 @@ function formatEarnedPointsLabel(points: number): string {
   return `+ ${points.toLocaleString()}`;
 }
 
-function formatCarModel(modelName: string, variantName: string): string {
-  return variantName ? `${modelName} ${variantName}` : modelName;
+function formatCarModel(brandName: string, modelName: string, variantName: string): string {
+  const parts = [brandName, modelName, variantName].filter(Boolean);
+  return parts.join(' ');
 }
 
 function CoinCMark({ size = 14 }: { size?: number }) {
@@ -106,7 +107,7 @@ function DriveRecordCard({ item }: { item: DrivingRecord }) {
   const startTime = formatTimeLabel(item.startTime);
   const endTime = formatTimeLabel(item.endTime);
   const distanceLabel = formatDistanceLabel(item.distanceKm);
-  const carModel = formatCarModel(item.vehicleModelName, item.vehicleVariantName);
+  const carModel = formatCarModel(item.vehicleBrandName, item.vehicleModelName, item.vehicleVariantName);
 
   return (
     <View

@@ -14,14 +14,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.caro.app",
+      "bundleIdentifier": "com.caro.app.yhjyhw",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
         "NSBluetoothPeripheralUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
         "NSLocationWhenInUseUsageDescription": "운행 중 GPS 위치를 수집하여 주행 거리를 계산합니다.",
         "NSLocationAlwaysUsageDescription": "백그라운드에서도 운행 기록을 수집합니다.",
-        "UIBackgroundModes": ["location", "bluetooth-central"]
+        "UIBackgroundModes": [
+          "location",
+          "bluetooth-central"
+        ]
       }
     },
     "android": {
@@ -59,7 +62,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "react-native-ble-plx"
     ]
   }
 }

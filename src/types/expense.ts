@@ -7,7 +7,8 @@ export type ExpenseCategoryItem = {
 
 export type ExpenseMemberCar = {
   id: number;
-  name: string;
+  brandName: string;
+  modelName: string;
   variant: string;
 };
 
@@ -48,4 +49,32 @@ export type CreateExpenseRequest = {
 
 export type CreateExpenseResponse = {
   id: number;
+};
+
+// GET /api/v1/expenses/summary 응답
+export type ExpenseSummaryPeriod = {
+  startDate: string; // e.g. "2026-02-07"
+  endDate: string;
+};
+
+export type ExpenseSummaryComparison = {
+  previousAmount: number;
+  difference: number;
+};
+
+export type ExpenseSummaryTotalAmount = {
+  amount: number;
+  comparison: ExpenseSummaryComparison;
+};
+
+export type ExpenseSummaryCategoryItem = {
+  category: string;
+  categoryLabel: string;
+  amount: number;
+};
+
+export type ExpenseSummary = {
+  period: ExpenseSummaryPeriod;
+  totalAmount: ExpenseSummaryTotalAmount;
+  categories: ExpenseSummaryCategoryItem[];
 };

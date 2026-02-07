@@ -7,6 +7,7 @@ import type {
   VehicleBrand,
   VehicleModel,
 } from '@/types/vehicle';
+import type { PrimaryCar } from '@/types/profile';
 
 function getApiBaseUrl() {
   const base = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
@@ -66,5 +67,26 @@ export async function registerMyCar(params: {
   );
 
   return data.data;
+}
+
+export async function fetchMyCars(accessToken: string): Promise<PrimaryCar[]> {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error('EXPO_PUBLIC_API_BASE_URL 이 설정되어있지 않습니다.');
+  }
+  if (!accessToken) {
+    throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+  }
+
+  const { data } = await axios.get<ApiResponse<PrimaryCar[]>>(
+    `${baseUrl}/api/v1/cars`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  return data.data ?? [];
 }
 
