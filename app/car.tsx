@@ -22,19 +22,26 @@ const DATE_WHEEL_PADDING = (DATE_WHEEL_HEIGHT - DATE_WHEEL_ITEM_HEIGHT) / 2;
 const DATE_PICKER_YEARS: number[] = [2024, 2025, 2026, 2027, 2028];
 const DATE_PICKER_MONTHS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
 
-function formatDateLabel(driveDate: string): string {
-  // API에서 "2026. 02. 06 (금)" 형태로 포맷팅되어 옴
-  return driveDate;
+const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+function formatDateLabel(isoDateTime: string): string {
+  const d = new Date(isoDateTime);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dayName = DAY_NAMES[d.getDay()];
+  return `${y}. ${m}. ${day} (${dayName})`;
 }
 
-function formatTimeLabel(time: string): string {
-  // time이 "10:20:00" 또는 "10:20" 형태라고 가정
-  return time.slice(0, 5);
+function formatTimeLabel(isoDateTime: string): string {
+  const d = new Date(isoDateTime);
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
 }
 
-function formatDistanceLabel(distanceKm: string): string {
-  // API에서 "1.5 km" 형태로 포맷팅되어 옴
-  return distanceKm;
+function formatDistanceLabel(distanceKm: number): string {
+  return `${distanceKm.toFixed(1)} km`;
 }
 
 function formatEarnedPointsLabel(points: number): string {
@@ -102,10 +109,10 @@ function Tag({ label }: { label: '출발' | '도착' }) {
 }
 
 function DriveRecordCard({ item }: { item: DrivingRecord }) {
-  const dateLabel = formatDateLabel(item.driveDate);
+  const dateLabel = formatDateLabel(item.startDateTime);
   const earnedLabel = formatEarnedPointsLabel(item.earnedPoints);
-  const startTime = formatTimeLabel(item.startTime);
-  const endTime = formatTimeLabel(item.endTime);
+  const startTime = formatTimeLabel(item.startDateTime);
+  const endTime = formatTimeLabel(item.endDateTime);
   const distanceLabel = formatDistanceLabel(item.distanceKm);
   const carModel = formatCarModel(item.vehicleBrandName, item.vehicleModelName, item.vehicleVariantName);
 

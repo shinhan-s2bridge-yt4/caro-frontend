@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -31,6 +31,7 @@ function formatYears(startYear: number, endYear: number) {
 export default function VehicleModelScreen() {
   const router = useRouter();
   const updateVehicle = useSignupDraftStore((s) => s.updateVehicle);
+  const userName = useSignupDraftStore((s) => s.account?.name ?? '');
   const brandId = useSignupDraftStore((s) => s.vehicle.brandId ?? null);
   const brandName = useSignupDraftStore((s) => s.vehicle.brandName ?? '');
 
@@ -42,6 +43,27 @@ export default function VehicleModelScreen() {
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   const isNextEnabled = useMemo(() => selectedModelId !== null, [selectedModelId]);
+
+  // 화면 진입 시 해당 브랜드의 전체 모델 목록 로드
+  useEffect(() => {
+    if (!brandId || brandId <= 0) return;
+
+    const loadAllModels = async () => {
+      try {
+        setIsSearching(true);
+        const data = await getVehicleModels({ brandId });
+        setModels(data);
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : '차종 목록을 불러오지 못했어요.';
+        setResultMessage(message);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    loadAllModels();
+  }, [brandId]);
 
   const handleSearch = async () => {
     setInputError(undefined);
@@ -127,7 +149,7 @@ export default function VehicleModelScreen() {
                 color: colors.coolNeutral[80],
               }}
             >
-              어떤 차량인가요?
+              {userName}님의{'\n'}차 모델을 선택해주세요
             </Text>
             <Text
               style={{
@@ -137,7 +159,7 @@ export default function VehicleModelScreen() {
                 color: colors.coolNeutral[40],
               }}
             >
-              소유하고 계신 차량의 이름을 검색해주세요.
+              차종을 검색하거나 목록에서 선택할 수 있어요
             </Text>
           </View>
 
@@ -152,7 +174,7 @@ export default function VehicleModelScreen() {
                 setInputError(undefined);
                 setResultMessage(null);
               }}
-              placeholder="차종을 검색해주세요"
+              placeholder="차종을 검색해주세요 예) 아반떼, 그랜저"
               onClear={() => {
                 setKeyword('');
                 setInputError(undefined);
@@ -220,13 +242,15 @@ export default function VehicleModelScreen() {
                       borderRadius: borderRadius.lg,
                       paddingVertical: 16,
                       paddingHorizontal: 20,
-                      borderWidth: 1,
+                      borderWidth: isSelected ? 1 : 0,
                       borderColor: isSelected
                         ? colors.primary[50]
-                        : colors.coolNeutral[10],
+                        : 'transparent',
                       backgroundColor: isSelected
                         ? colors.coolNeutral[10]
-                        : colors.background.default,
+                        : selectedModelId !== null
+                          ? colors.background.default
+                          : colors.coolNeutral[10],
                     }}
                   >
                     <Text
@@ -235,7 +259,7 @@ export default function VehicleModelScreen() {
                         ...typography.styles.body2Semibold,
                         color: isSelected
                           ? colors.primary[50]
-                          : colors.coolNeutral[80],
+                          : colors.coolNeutral[50],
                       }}
                     >
                       {title}
@@ -246,7 +270,9 @@ export default function VehicleModelScreen() {
                           marginTop: 3,
                           fontFamily: typography.fontFamily.pretendard,
                           ...typography.styles.body3Medium,
-                          color: colors.coolNeutral[40],
+                          color: isSelected
+                            ? colors.coolNeutral[40]
+                            : colors.coolNeutral[30],
                         }}
                       >
                         {years}

@@ -102,7 +102,7 @@ export default function VehicleBrandScreen() {
                 color: colors.coolNeutral[80],
               }}
             >
-              차량 제조사를{'\n'}선택해주세요
+              어떤 제조사의 차량인가요?
             </Text>
             <Text
               style={{
@@ -112,7 +112,7 @@ export default function VehicleBrandScreen() {
                 color: colors.coolNeutral[40],
               }}
             >
-              먼저 차량을 만든 회사를 선택해주세요
+              내 차 브랜드를 선택해주세요
             </Text>
           </View>
 

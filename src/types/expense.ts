@@ -1,4 +1,4 @@
-export type ExpenseCategory = 'FUEL' | 'MAINTENANCE' | 'PARKING' | 'TOLL';
+export type ExpenseCategory = 'FUEL' | 'MAINTENANCE' | 'PARKING' | 'TOLL' | 'CAR_WASH' | 'INSURANCE' | 'ACCESSORY';
 
 export type ExpenseCategoryItem = {
   category: ExpenseCategory;
@@ -49,6 +49,23 @@ export type CreateExpenseRequest = {
 
 export type CreateExpenseResponse = {
   id: number;
+};
+
+export type UpdateExpenseRequest = {
+  expenseDate: string; // e.g. "2026-02-08"
+  category: ExpenseCategory;
+  amount: number;
+  location: string;
+  memo: string;
+};
+
+export type UpdateExpenseResponse = {
+  id: number;
+  expenseDate: string;
+  category: string;
+  amount: number;
+  location: string;
+  memo: string;
 };
 
 // GET /api/v1/expenses/summary 응답

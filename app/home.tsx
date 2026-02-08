@@ -191,19 +191,16 @@ export default function HomeScreen() {
         console.warn('종료 위치 역지오코딩 실패');
       }
 
-      // 날짜/시간 포맷팅
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const driveDate = `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
-      const startTimeStr = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}:${pad(startDate.getSeconds())}`;
-      const endTimeStr = `${pad(endTime.getHours())}:${pad(endTime.getMinutes())}:${pad(endTime.getSeconds())}`;
+      // ISO 8601 datetime 변환
+      const startDateTime = startDate.toISOString();
+      const endDateTime = endTime.toISOString();
 
       // API 호출
       if (accessToken && selectedCarId) {
         const requestBody = {
           memberCarId: selectedCarId,
-          driveDate,
-          startTime: startTimeStr,
-          endTime: endTimeStr,
+          startDateTime,
+          endDateTime,
           distanceKm: Math.round(distance * 100) / 100,
           startLocation: startLoc || '알 수 없는 위치',
           endLocation: endLocationName,

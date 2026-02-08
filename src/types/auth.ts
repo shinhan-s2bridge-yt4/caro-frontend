@@ -19,3 +19,14 @@ export type SignUpRequest = {
 
 export type SignUpResponseData = LoginResponseData;
 
+export type ReissueRequest = {
+  refreshToken: string;
+};
+
+export type ReissueResponseData = {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresIn: number;
+  refreshTokenExpiresIn: number;
+};
+

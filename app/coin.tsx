@@ -36,6 +36,9 @@ import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
 import UpIcon from '../assets/icons/UpIcon.svg';
 import GraphIcon from '../assets/icons/graphIcon.svg';
+import UpGraphIcon from '../assets/icons/upgraph.svg';
+import RGraphIcon from '../assets/icons/rgraph.svg';
+import GGraphIcon from '../assets/icons/ggraph.svg';
 import LeftIcon from '../assets/icons/LeftIcon.svg';
 import RightIcon from '../assets/icons/RightIcon.svg';
 import GRightIcon from '../assets/icons/GRightIcon.svg';
@@ -46,6 +49,14 @@ import GCarIcon from '../assets/icons/gcar.svg';
 import WCheckIcon from '../assets/icons/wcheck.svg';
 import WCarIcon from '../assets/icons/wcar.svg';
 import PencilIcon from '../assets/icons/pencil.svg';
+import BPlusIcon from '../assets/icons/bplus.svg';
+import OilingIcon from '../assets/icons/oiling.svg';
+import ParkingIcon from '../assets/icons/parking.svg';
+import InsuranceIcon from '../assets/icons/insurance.svg';
+import TollIcon from '../assets/icons/toll.svg';
+import MaintenanceIcon from '../assets/icons/maintenance.svg';
+import CarwashIcon from '../assets/icons/carwash.svg';
+import ExpendablesIcon from '../assets/icons/expendables.svg';
 
 
 const SCREEN_MAX_WIDTH = 375;
@@ -104,6 +115,9 @@ function mapApiCategoryToUi(category: ExpenseCategory): Exclude<CategoryKey, 'AL
     MAINTENANCE: 'REPAIR',
     PARKING: 'PARKING',
     TOLL: 'TOLL',
+    CAR_WASH: 'CAR_WASH',
+    INSURANCE: 'INSURANCE',
+    ACCESSORY: 'ACCESSORY',
   };
   return map[category];
 }
@@ -116,6 +130,9 @@ function mapUiCategoryToApi(category: CategoryKey): ExpenseCategory | undefined 
     REPAIR: 'MAINTENANCE',
     PARKING: 'PARKING',
     TOLL: 'TOLL',
+    CAR_WASH: 'CAR_WASH',
+    INSURANCE: 'INSURANCE',
+    ACCESSORY: 'ACCESSORY',
   };
   return map[category];
 }
@@ -142,6 +159,8 @@ export default function CoinScreen() {
     createExpense,
     isCreating,
     createError,
+    updateExpense,
+    isUpdating,
     categories,
     fetchCategories,
     summary,
@@ -190,6 +209,7 @@ export default function CoinScreen() {
   const [isExpenseToastVisible, setIsExpenseToastVisible] = useState<boolean>(false);
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null); // 수정 모드일 때 해당 지출 ID
 
   const yearListRef = useRef<FlatList<number> | null>(null);
   const monthListRef = useRef<FlatList<number> | null>(null);
@@ -587,16 +607,24 @@ export default function CoinScreen() {
       : calendarExpenseItems.slice(0, 5);
   }, [calendarExpenseItems, isCalendarExpenseListExpanded]);
 
+  // API 카테고리를 CategoryTab 형식으로 변환
+  const apiCategoryItems = useMemo(() => {
+    if (categories.length === 0) return undefined; // 로딩 전에는 기본값 사용
+    return [
+      { key: 'ALL' as CategoryKey, label: '전체' },
+      ...categories.map(c => ({
+        key: mapApiCategoryToUi(c.category) as CategoryKey,
+        label: c.categoryLabel,
+      })),
+    ];
+  }, [categories]);
+
   const calendarSelectedCategoryLabel = useMemo(() => {
-    const map: Record<CategoryKey, string> = {
-      ALL: '전체',
-      FUEL: '주유비',
-      PARKING: '주차비',
-      REPAIR: '정비·수리비',
-      TOLL: '통행료',
-    };
-    return map[calendarSelectedCategory];
-  }, [calendarSelectedCategory]);
+    if (calendarSelectedCategory === 'ALL') return '전체';
+    const found = categories.find(c => mapApiCategoryToUi(c.category) === calendarSelectedCategory);
+    if (found) return found.categoryLabel;
+    return calendarSelectedCategory;
+  }, [calendarSelectedCategory, categories]);
 
   const openAddExpenseWithDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
@@ -615,6 +643,9 @@ export default function CoinScreen() {
       PARKING: '주차비',
       REPAIR: '정비·수리비',
       TOLL: '통행료',
+      CAR_WASH: '세차비',
+      INSURANCE: '보험료',
+      ACCESSORY: '자동차 용품비',
     };
     return map[selectedCategory];
   }, [selectedCategory]);
@@ -737,7 +768,28 @@ export default function CoinScreen() {
                       </View>
                       <Pressable
                         onPress={() => {
-                          // TODO: 수정 기능
+                          if (!detailExpense) return;
+                          // 상세 모달 닫기
+                          setIsDetailModalVisible(false);
+                          // 폼에 기존 데이터 채워넣기
+                          const exp = detailExpense;
+                          const [y, m, d] = exp.expenseDate.split('-').map(Number);
+                          setAddDate(formatKoreanDateLabel(y, m, d));
+                          setPickedYear(y);
+                          setPickedMonth(m);
+                          setPickedDay(d);
+                          setAddAmount(exp.amount.toLocaleString('ko-KR'));
+                          setAddPlace(exp.location || '');
+                          setAddMemo(exp.memo || '');
+                          setAddCategory(exp.category);
+                          setEditingExpenseId(exp.id);
+                          // 차량 매칭
+                          const matched = myCars.find((c) => c.id === exp.memberCar?.id);
+                          if (matched) {
+                            setSelectedCar(matched);
+                          }
+                          // 수정 폼 열기
+                          requestAnimationFrame(() => setIsAddExpenseOpen(true));
                         }}
                         accessibilityRole="button"
                         accessibilityLabel="edit-expense"
@@ -1142,12 +1194,12 @@ export default function CoinScreen() {
         visible={isAddExpenseOpen}
         transparent
         animationType="slide"
-        onRequestClose={() => setIsAddExpenseOpen(false)}
+        onRequestClose={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
           {/* backdrop */}
           <Pressable
-            onPress={() => setIsAddExpenseOpen(false)}
+            onPress={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
             style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             accessibilityRole="button"
             accessibilityLabel="dismiss-add-expense"
@@ -1183,13 +1235,14 @@ export default function CoinScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  지출 추가
+                  {editingExpenseId ? '지출 수정' : '지출 추가'}
                 </Text>
 
                 <Pressable
                   onPress={() => {
                     setIsAddExpenseOpen(false);
                     resetAddExpenseForm();
+                    setEditingExpenseId(null);
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="close-add-expense"
@@ -1420,37 +1473,39 @@ export default function CoinScreen() {
                       카테고리
                     </Text>
 
-                    <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
-                      {categories.map((c) => {
-                        const selected = addCategory === c.category;
-                        return (
-                          <Pressable
-                            key={c.category}
-                            onPress={() => setAddCategory(c.category)}
-                            style={{
-                              height: 36,
-                              paddingHorizontal: 12,
-                              borderRadius: borderRadius.md,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: selected
-                                ? colors.primary[50]
-                                : colors.background.default,
-                            }}
-                          >
-                            <Text
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {categories.map((c) => {
+                          const selected = addCategory === c.category;
+                          return (
+                            <Pressable
+                              key={c.category}
+                              onPress={() => setAddCategory(c.category)}
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Semibold,
-                                color: selected ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                                height: 36,
+                                paddingHorizontal: 12,
+                                borderRadius: borderRadius.md,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: selected
+                                  ? colors.primary[50]
+                                  : colors.background.default,
                               }}
                             >
-                              {c.categoryLabel}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Semibold,
+                                  color: selected ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                                }}
+                              >
+                                {c.categoryLabel}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   </View>
 
                   <NumberInput
@@ -1480,46 +1535,79 @@ export default function CoinScreen() {
 
                     {/* 하단 버튼 */}
                     <Pressable
-                      disabled={!isAddEnabled || isCreating || !selectedCar}
+                      disabled={!isAddEnabled || isCreating || isUpdating || !selectedCar}
                       onPress={async () => {
-                        if (!isAddEnabled || isCreating || !accessToken || !selectedCar) return;
-                        
+                        if (!isAddEnabled || !accessToken || !selectedCar) return;
+
                         const expenseDate = parseKoreanDateToIso(addDate);
-                        
+
                         if (!expenseDate) {
                           Alert.alert('오류', '날짜가 올바르지 않습니다.');
                           return;
                         }
 
-                        const requestData = {
-                          memberCarId: selectedCar.id,
-                          expenseDate,
-                          amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
-                          category: addCategory,
-                          location: addPlace,
-                          memo: addMemo,
-                        };
-                        
-                        console.log('createExpense request:', requestData);
+                        if (editingExpenseId) {
+                          // 수정 모드
+                          if (isUpdating) return;
+                          const updateData = {
+                            expenseDate,
+                            amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
+                            category: addCategory,
+                            location: addPlace,
+                            memo: addMemo,
+                          };
 
-                        const success = await createExpense({
-                          request: requestData,
-                          accessToken,
-                        });
+                          const success = await updateExpense({
+                            expenseId: editingExpenseId,
+                            request: updateData,
+                            accessToken,
+                          });
 
-                        if (success) {
-                          setIsAddExpenseOpen(false);
-                          resetAddExpenseForm();
-                          // 지출 목록 + 요약 새로고침
-                          const mm = String(currentMonthIndex + 1).padStart(2, '0');
-                          const yearMonth = `${currentYear}-${mm}`;
-                          fetchExpenses({ accessToken, yearMonth, size: 100 });
-                          fetchSummary({ accessToken, yearMonth });
-                          setIsExpenseToastVisible(true);
+                          if (success) {
+                            setIsAddExpenseOpen(false);
+                            resetAddExpenseForm();
+                            setEditingExpenseId(null);
+                            // 지출 목록 + 요약 새로고침
+                            const mm = String(currentMonthIndex + 1).padStart(2, '0');
+                            const yearMonth = `${currentYear}-${mm}`;
+                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchSummary({ accessToken, yearMonth });
+                          } else {
+                            const errorMsg = useExpenseStore.getState().updateError || '지출 내역 수정에 실패했습니다.';
+                            Alert.alert('오류', errorMsg);
+                          }
                         } else {
-                          // 스토어에서 에러 메시지 가져와서 표시
-                          const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
-                          Alert.alert('오류', errorMsg);
+                          // 추가 모드
+                          if (isCreating) return;
+                          const requestData = {
+                            memberCarId: selectedCar.id,
+                            expenseDate,
+                            amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
+                            category: addCategory,
+                            location: addPlace,
+                            memo: addMemo,
+                          };
+
+                          console.log('createExpense request:', requestData);
+
+                          const success = await createExpense({
+                            request: requestData,
+                            accessToken,
+                          });
+
+                          if (success) {
+                            setIsAddExpenseOpen(false);
+                            resetAddExpenseForm();
+                            // 지출 목록 + 요약 새로고침
+                            const mm = String(currentMonthIndex + 1).padStart(2, '0');
+                            const yearMonth = `${currentYear}-${mm}`;
+                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchSummary({ accessToken, yearMonth });
+                            setIsExpenseToastVisible(true);
+                          } else {
+                            const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
+                            Alert.alert('오류', errorMsg);
+                          }
                         }
                       }}
                       style={{
@@ -1528,10 +1616,10 @@ export default function CoinScreen() {
                         borderRadius: borderRadius.md,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: (isAddEnabled && !isCreating) ? colors.primary[50] : colors.coolNeutral[20],
+                        backgroundColor: (isAddEnabled && !isCreating && !isUpdating) ? colors.primary[50] : colors.coolNeutral[20],
                       }}
                     >
-                      {isCreating ? (
+                      {(isCreating || isUpdating) ? (
                         <ActivityIndicator size="small" color={colors.coolNeutral[10]} />
                       ) : (
                         <Text
@@ -1541,7 +1629,7 @@ export default function CoinScreen() {
                             color: isAddEnabled ? colors.coolNeutral[10] : colors.coolNeutral[40],
                           }}
                         >
-                          추가하기
+                          {editingExpenseId ? '수정하기' : '추가하기'}
                         </Text>
                       )}
                     </Pressable>
@@ -1832,6 +1920,7 @@ export default function CoinScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           alignItems: 'stretch',
+          paddingBottom: 80,
         }}
       >
         <View style={{ width: '100%', flex: 1 }}>
@@ -1955,12 +2044,22 @@ export default function CoinScreen() {
                     >
                       전월대비
                     </Text>
-                    <GraphIcon width={12} height={12} />
+                    {summary && summary.totalAmount.comparison.difference > 0 ? (
+                      <UpGraphIcon width={12} height={12} />
+                    ) : summary && summary.totalAmount.comparison.difference < 0 ? (
+                      <RGraphIcon width={12} height={12} />
+                    ) : (
+                      <GGraphIcon width={12} height={12} />
+                    )}
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
                         ...typography.styles.body3Semibold,
-                        color: colors.primary[50],
+                        color: summary && summary.totalAmount.comparison.difference > 0
+                          ? colors.primary[50]
+                          : summary && summary.totalAmount.comparison.difference < 0
+                            ? colors.red[40]
+                            : colors.coolNeutral[40],
                       }}
                     >
                       {summaryDifferenceLabel}
@@ -2272,20 +2371,15 @@ export default function CoinScreen() {
                 {/* 카테고리 탭 + 타이틀 + 리스트 */}
                 <View style={{ backgroundColor: colors.coolNeutral[10] }}>
                   {/* 카테고리 탭 */}
-                  <View style={{ paddingLeft: 20 }}>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingVertical: 32 }}
-                    >
-                      <CategoryTab
-                        selected={calendarSelectedCategory}
-                        onSelect={(key) => {
-                          setCalendarSelectedCategory(key);
-                          setIsCalendarExpenseListExpanded(false);
-                        }}
-                      />
-                    </ScrollView>
+                  <View style={{ paddingLeft: 20, paddingVertical: 32 }}>
+                    <CategoryTab
+                      selected={calendarSelectedCategory}
+                      onSelect={(key) => {
+                        setCalendarSelectedCategory(key);
+                        setIsCalendarExpenseListExpanded(false);
+                      }}
+                      categories={apiCategoryItems}
+                    />
                   </View>
 
               {/* 타이틀 */}
@@ -2363,24 +2457,8 @@ export default function CoinScreen() {
                         onPress={() => openAddExpenseWithDate(selectedDateString)}
                         accessibilityRole="button"
                         accessibilityLabel="add-expense-for-date"
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: borderRadius.full,
-                          backgroundColor: colors.primary[50],
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
                       >
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            fontSize: 24,
-                            color: colors.coolNeutral[10],
-                          }}
-                        >
-                          +
-                        </Text>
+                        <BPlusIcon width={40} height={40} />
                       </Pressable>
                       <View style={{ alignItems: 'center', gap: 4 }}>
                         <Text
@@ -2427,6 +2505,9 @@ export default function CoinScreen() {
                       PARKING: '주차비',
                       REPAIR: '정비·수리비',
                       TOLL: '통행료',
+                      CAR_WASH: '세차비',
+                      INSURANCE: '보험료',
+                      ACCESSORY: '자동차 용품비',
                     };
                     return (
                       <Pressable
@@ -2455,8 +2536,18 @@ export default function CoinScreen() {
                             height: 44,
                             borderRadius: borderRadius.full,
                             backgroundColor: colors.background.default,
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
-                        />
+                        >
+                          {item.category === 'FUEL' && <OilingIcon width={24} height={24} />}
+                          {item.category === 'PARKING' && <ParkingIcon width={24} height={24} />}
+                          {item.category === 'INSURANCE' && <InsuranceIcon width={24} height={24} />}
+                          {item.category === 'TOLL' && <TollIcon width={24} height={24} />}
+                          {item.category === 'REPAIR' && <MaintenanceIcon width={24} height={24} />}
+                          {item.category === 'CAR_WASH' && <CarwashIcon width={24} height={24} />}
+                          {item.category === 'ACCESSORY' && <ExpendablesIcon width={24} height={24} />}
+                        </View>
 
                         {/* 본문 */}
                         <View style={{ flex: 1, gap: 6 }}>
@@ -2511,7 +2602,7 @@ export default function CoinScreen() {
                                   style={{
                                     flex: 1,
                                     fontFamily: typography.fontFamily.pretendard,
-                                    ...typography.styles.body2Medium,
+                                    ...typography.styles.captionMedium,
                                     color: colors.primary[30],
                                   }}
                                 >
@@ -2542,7 +2633,7 @@ export default function CoinScreen() {
                               <Text
                                 style={{
                                   fontFamily: typography.fontFamily.pretendard,
-                                  ...typography.styles.body3Medium,
+                                  ...typography.styles.captionMedium,
                                   color: colors.coolNeutral[40],
                                 }}
                               >
@@ -2552,7 +2643,7 @@ export default function CoinScreen() {
                               <Text
                                 style={{
                                   fontFamily: typography.fontFamily.pretendard,
-                                  ...typography.styles.body3Medium,
+                                  ...typography.styles.captionMedium,
                                   color: colors.coolNeutral[40],
                                 }}
                               >
@@ -2607,20 +2698,15 @@ export default function CoinScreen() {
           {selectedTab === 'expense' && (
             <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
               {/* 카테고리 탭 */}
-              <View style={{ paddingLeft: 20 }}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingVertical: 32 }}
-                >
-                  <CategoryTab
-                    selected={selectedCategory}
-                    onSelect={(key) => {
-                      setSelectedCategory(key);
-                      setIsExpenseListExpanded(false);
-                    }}
-                  />
-                </ScrollView>
+              <View style={{ paddingLeft: 20, paddingVertical: 32 }}>
+                <CategoryTab
+                  selected={selectedCategory}
+                  onSelect={(key) => {
+                    setSelectedCategory(key);
+                    setIsExpenseListExpanded(false);
+                  }}
+                  categories={apiCategoryItems}
+                />
               </View>
 
               {/* 타이틀 */}
@@ -2687,6 +2773,9 @@ export default function CoinScreen() {
                       PARKING: '주차비',
                       REPAIR: '정비·수리비',
                       TOLL: '통행료',
+                      CAR_WASH: '세차비',
+                      INSURANCE: '보험료',
+                      ACCESSORY: '자동차 용품비',
                     };
                     return (
                       <Pressable
@@ -2715,8 +2804,18 @@ export default function CoinScreen() {
                             height: 44,
                             borderRadius: borderRadius.full,
                             backgroundColor: colors.background.default,
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
-                        />
+                        >
+                          {item.category === 'FUEL' && <OilingIcon width={24} height={24} />}
+                          {item.category === 'PARKING' && <ParkingIcon width={24} height={24} />}
+                          {item.category === 'INSURANCE' && <InsuranceIcon width={24} height={24} />}
+                          {item.category === 'TOLL' && <TollIcon width={24} height={24} />}
+                          {item.category === 'REPAIR' && <MaintenanceIcon width={24} height={24} />}
+                          {item.category === 'CAR_WASH' && <CarwashIcon width={24} height={24} />}
+                          {item.category === 'ACCESSORY' && <ExpendablesIcon width={24} height={24} />}
+                        </View>
 
                         {/* 본문 */}
                         <View style={{ flex: 1, gap: 6 }}>
@@ -2772,7 +2871,7 @@ export default function CoinScreen() {
                                   style={{
                                     flex: 1,
                                     fontFamily: typography.fontFamily.pretendard,
-                                    ...typography.styles.body2Medium,
+                                    ...typography.styles.captionMedium,
                                     color: colors.primary[30],
                                   }}
                                 >
@@ -2804,22 +2903,22 @@ export default function CoinScreen() {
                               <Text
                                 style={{
                                   fontFamily: typography.fontFamily.pretendard,
-                                  ...typography.styles.body3Medium,
+                                  ...typography.styles.captionMedium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {categoryLabelMap[item.category]}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionMedium,
                                   color: colors.coolNeutral[40],
                                 }}
                               >
                                 {item.date}
                               </Text>
 
-                              <Text
-                                style={{
-                                  fontFamily: typography.fontFamily.pretendard,
-                                  ...typography.styles.body3Medium,
-                                  color: colors.coolNeutral[40],
-                                }}
-                              >
-                                {categoryLabelMap[item.category]}
-                              </Text>
                             </View>
                           </View>
                         </View>
@@ -2864,6 +2963,34 @@ export default function CoinScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* 플로팅 지출 추가 버튼 (캘린더 날짜 선택 + 지출내역 없음일 때만 숨김) */}
+      {!(selectedTab === 'calendar' && isDaySelected && calendarExpenseItems.length === 0) && (
+        <Pressable
+          onPress={
+            selectedTab === 'calendar' && isDaySelected
+              ? () => openAddExpenseWithDate(selectedDateString)
+              : openCarSelect
+          }
+          accessibilityRole="button"
+          accessibilityLabel="지출내역 추가"
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: 100,
+            zIndex: 100,
+            // 그림자 (iOS)
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.18,
+            shadowRadius: 8,
+            // 그림자 (Android)
+            elevation: 6,
+          }}
+        >
+          <BPlusIcon width={56} height={56} />
+        </Pressable>
+      )}
 
       {/* 하단 네비게이션 영역은 흰 배경으로 가로 꽉 채움(좌우 빈공간 방지) */}
       <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>

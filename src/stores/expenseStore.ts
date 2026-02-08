@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
-import { getExpenses, createExpense, getExpenseCategories, getExpenseSummary } from '@/services/expenseService';
-import type { Expense, ExpenseCategory, CreateExpenseRequest, ExpenseCategoryItem, ExpenseSummary } from '@/types/expense';
+import { getExpenses, createExpense, updateExpense as updateExpenseApi, getExpenseCategories, getExpenseSummary } from '@/services/expenseService';
+import type { Expense, ExpenseCategory, CreateExpenseRequest, UpdateExpenseRequest, ExpenseCategoryItem, ExpenseSummary } from '@/types/expense';
 
 type ExpenseState = {
   expenses: Expense[];
@@ -15,6 +15,10 @@ type ExpenseState = {
   // 생성 관련 상태
   isCreating: boolean;
   createError: string | null;
+
+  // 수정 관련 상태
+  isUpdating: boolean;
+  updateError: string | null;
 
   // 카테고리 관련 상태
   categories: ExpenseCategoryItem[];
@@ -46,6 +50,12 @@ type ExpenseState = {
     accessToken: string;
   }) => Promise<boolean>;
 
+  updateExpense: (params: {
+    expenseId: number;
+    request: UpdateExpenseRequest;
+    accessToken: string;
+  }) => Promise<boolean>;
+
   fetchCategories: (params: { accessToken: string }) => Promise<void>;
 
   fetchSummary: (params: {
@@ -68,6 +78,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   // 생성 관련 초기 상태
   isCreating: false,
   createError: null,
+
+  // 수정 관련 초기 상태
+  isUpdating: false,
+  updateError: null,
 
   // 카테고리 관련 초기 상태
   categories: [],
@@ -152,6 +166,26 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
+  updateExpense: async ({ expenseId, request, accessToken }) => {
+    set({ isUpdating: true, updateError: null });
+    try {
+      await updateExpenseApi({ expenseId, request, accessToken });
+      set({ isUpdating: false });
+      return true;
+    } catch (e: unknown) {
+      let message = '지출 내역 수정에 실패했습니다.';
+      if (e && typeof e === 'object' && 'response' in e) {
+        const axiosError = e as { response?: { data?: { message?: string } } };
+        message = axiosError.response?.data?.message || message;
+      } else if (e instanceof Error) {
+        message = e.message;
+      }
+      console.error('updateExpense error:', e);
+      set({ updateError: message, isUpdating: false });
+      return false;
+    }
+  },
+
   fetchCategories: async ({ accessToken }) => {
     set({ isCategoriesLoading: true, categoriesError: null });
     try {
@@ -188,6 +222,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       error: null,
       isCreating: false,
       createError: null,
+      isUpdating: false,
+      updateError: null,
       categories: [],
       isCategoriesLoading: false,
       categoriesError: null,

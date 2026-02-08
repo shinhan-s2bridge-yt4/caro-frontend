@@ -11,6 +11,7 @@ import { loginWithEmail } from '@/services/authService';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
+import LogoIcon from '../../assets/icons/logo.svg';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -90,13 +91,19 @@ export default function LoginScreen() {
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1,
         backgroundColor: colors.coolNeutral[10],
-        paddingTop: 274,
+        paddingTop: 160,
         alignItems: 'center',
       }}
     >
+    {/* 로고 */}
+    <View style={{ alignItems: 'center', marginBottom: 80 }}>
+      <LogoIcon width={150} height={42} />
+    </View>
+
     <View style={{ gap: 20, width: 334 }}>
       {/* 아이디 입력 */}
       <TextInput
@@ -107,6 +114,7 @@ export default function LoginScreen() {
         keyboardType="email-address"
         autoCapitalize="none"
         onClear={() => setEmail('')}
+        noBlurStyle
       />
 
       {/* 비밀번호 입력 */}

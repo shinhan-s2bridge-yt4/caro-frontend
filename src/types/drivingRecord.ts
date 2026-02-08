@@ -1,9 +1,8 @@
 export type DrivingRecord = {
   id: number;
-  driveDate: string;
-  startTime: string;
-  endTime: string;
-  distanceKm: string;
+  startDateTime: string; // ISO 8601, e.g. "2026-02-08T15:20:47.172Z"
+  endDateTime: string;   // ISO 8601, e.g. "2026-02-08T15:20:47.172Z"
+  distanceKm: number;
   startLocation: string;
   endLocation: string;
   vehicleBrandName: string;
@@ -32,9 +31,8 @@ export type DrivingSummary = {
 
 export type CreateDrivingRecordRequest = {
   memberCarId: number;
-  driveDate: string;
-  startTime: string;
-  endTime: string;
+  startDateTime: string; // ISO 8601, e.g. "2026-02-08T15:17:52.357Z"
+  endDateTime: string;   // ISO 8601, e.g. "2026-02-08T15:17:52.357Z"
   distanceKm: number;
   startLocation: string;
   endLocation: string;

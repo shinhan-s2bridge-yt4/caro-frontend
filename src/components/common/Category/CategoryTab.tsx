@@ -30,55 +30,52 @@ const Category = <T extends string = CategoryKey>({ selected, onSelect, categori
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        flexDirection: 'row',
-        gap,
-        alignItems: 'center',
-      }}
     >
-      {items.map((category, index) => {
-        const isSelected = selected === category.key;
-        const showDivider = dividerAfterIndex !== undefined && index === dividerAfterIndex;
+      <View style={{ flexDirection: 'row', gap, alignItems: 'center' }}>
+        {items.map((category, index) => {
+          const isSelected = selected === category.key;
+          const showDivider = dividerAfterIndex !== undefined && index === dividerAfterIndex;
 
-        return (
-          <View key={category.key} style={{ flexDirection: 'row', alignItems: 'center', gap }}>
-            <Pressable
-              onPress={() => onSelect(category.key)}
-              style={{
-                height: 36,
-                paddingHorizontal: 12,
-                borderRadius: borderRadius.md,  // 12px
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: isSelected
-                  ? getSelectedBgColor()        // 선택
-                  : getUnselectedBgColor(),   // 미선택
-              }}
-            >
-              <Text
+          return (
+            <View key={`${category.key}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap }}>
+              <Pressable
+                onPress={() => onSelect(category.key)}
                 style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body2Semibold,
-                  color: isSelected
-                    ? getSelectedTextColor()  // 선택 글자색
-                    : getUnselectedTextColor(), // 미선택 글자색
+                  height: 36,
+                  paddingHorizontal: 12,
+                  borderRadius: borderRadius.md,  // 12px
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isSelected
+                    ? getSelectedBgColor()        // 선택
+                    : getUnselectedBgColor(),   // 미선택
                 }}
               >
-                {category.label}
-              </Text>
-            </Pressable>
-            {showDivider && (
-              <View
-                style={{
-                  width: 2,
-                  height: 37,
-                  backgroundColor: colors.coolNeutral[10],
-                }}
-              />
-            )}
-          </View>
-        );
-      })}
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Semibold,
+                    color: isSelected
+                      ? getSelectedTextColor()  // 선택 글자색
+                      : getUnselectedTextColor(), // 미선택 글자색
+                  }}
+                >
+                  {category.label}
+                </Text>
+              </Pressable>
+              {showDivider && (
+                <View
+                  style={{
+                    width: 2,
+                    height: 37,
+                    backgroundColor: colors.coolNeutral[10],
+                  }}
+                />
+              )}
+            </View>
+          );
+        })}
+      </View>
     </ScrollView>
   );
 };
