@@ -1,7 +1,15 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 import { useDrivingStore, type LocationPoint } from '@/stores/drivingStore';
+
+// 네이티브 전용 모듈 - 웹에서는 import하지 않음
+let Location: any = null;
+let TaskManager: any = null;
+
+if (Platform.OS !== 'web') {
+  Location = require('expo-location');
+  TaskManager = require('expo-task-manager');
+}
 
 const BACKGROUND_LOCATION_TASK = 'background-location-task';
 
@@ -10,6 +18,7 @@ export async function reverseGeocodeToAddress(
   latitude: number,
   longitude: number,
 ): Promise<string> {
+  if (Platform.OS === 'web' || !Location) return '알 수 없는 위치';
   try {
     const results = await Location.reverseGeocodeAsync({ latitude, longitude });
     if (results.length > 0) {
@@ -33,31 +42,33 @@ export async function reverseGeocodeToAddress(
   }
 }
 
-// 백그라운드 위치 추적 태스크 정의
-TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
-  if (error) {
-    console.error('백그라운드 위치 추적 에러:', error);
-    return;
-  }
-  
-  if (data) {
-    const { locations } = data as { locations: Location.LocationObject[] };
-    const location = locations[0];
-    
-    if (location) {
-      const { updateLocation } = useDrivingStore.getState();
-      updateLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        timestamp: location.timestamp,
-      });
+// 백그라운드 위치 추적 태스크 정의 (네이티브 전용)
+if (Platform.OS !== 'web' && TaskManager && Location) {
+  TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
+    if (error) {
+      console.error('백그라운드 위치 추적 에러:', error);
+      return;
     }
-  }
-});
+    
+    if (data) {
+      const { locations } = data as { locations: any[] };
+      const location = locations[0];
+      
+      if (location) {
+        const { updateLocation } = useDrivingStore.getState();
+        updateLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          timestamp: location.timestamp,
+        });
+      }
+    }
+  });
+}
 
 interface UseDriveTrackingOptions {
   // GPS 정확도 설정
-  accuracy?: Location.Accuracy;
+  accuracy?: number;
   // 위치 업데이트 간격 (ms)
   updateInterval?: number;
   // 최소 이동 거리 (m) - 이 거리 이상 이동해야 업데이트
@@ -79,11 +90,24 @@ interface UseDriveTrackingReturn {
   stopTracking: () => Promise<void>;
 }
 
+const WEB_NOOP_RETURN: UseDriveTrackingReturn = {
+  hasPermission: false,
+  isTracking: false,
+  currentLocation: null,
+  error: '웹에서는 GPS 추적을 지원하지 않습니다.',
+  requestPermissions: async () => false,
+  startTracking: async () => {},
+  stopTracking: async () => {},
+};
+
 export function useDriveTracking(
   options: UseDriveTrackingOptions = {}
 ): UseDriveTrackingReturn {
+  // 웹에서는 GPS 추적 기능 사용 불가 - 안전한 기본값 반환
+  if (Platform.OS === 'web') return WEB_NOOP_RETURN;
+
   const {
-    accuracy = Location.Accuracy.High,
+    accuracy = Location?.Accuracy?.High ?? 4,
     updateInterval = 3000,
     distanceFilter = 5,
     enableBackground = true,
@@ -93,7 +117,7 @@ export function useDriveTracking(
   const [isTracking, setIsTracking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const locationSubscriptionRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const status = useDrivingStore((state) => state.status);
@@ -171,7 +195,7 @@ export function useDriveTracking(
           timeInterval: updateInterval,
           distanceInterval: distanceFilter,
         },
-        (location) => {
+        (location: any) => {
           updateLocation({
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,

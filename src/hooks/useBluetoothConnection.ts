@@ -1,13 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { BleManager, Device, State } from 'react-native-ble-plx';
 import { useDrivingStore } from '@/stores/drivingStore';
 import { useBluetoothSettingsStore } from '@/stores/bluetoothSettingsStore';
-import {
-  getConnectedBluetoothAudio,
-  addBluetoothAudioListener,
-  isClassicBtAvailable,
-} from '../../modules/bluetooth-audio';
+
+// 네이티브 전용 모듈 - 웹에서는 import하지 않음
+let BleManager: any = null;
+let State: any = {};
+let getConnectedBluetoothAudio: any = () => null;
+let addBluetoothAudioListener: any = () => ({ remove: () => {} });
+let isClassicBtAvailableNative: any = () => false;
+
+if (Platform.OS !== 'web') {
+  const blePlx = require('react-native-ble-plx');
+  BleManager = blePlx.BleManager;
+  State = blePlx.State;
+  const btAudio = require('../../modules/bluetooth-audio');
+  getConnectedBluetoothAudio = btAudio.getConnectedBluetoothAudio;
+  addBluetoothAudioListener = btAudio.addBluetoothAudioListener;
+  isClassicBtAvailableNative = btAudio.isClassicBtAvailable;
+}
 
 /**
  * 블루투스 연결 감지 훅 (BLE + Classic BT 오디오)
@@ -19,9 +30,10 @@ import {
  */
 
 // BleManager 싱글턴
-let bleManagerInstance: BleManager | null = null;
+let bleManagerInstance: any = null;
 
-function getBleManager(): BleManager {
+function getBleManager(): any {
+  if (!BleManager) return null;
   if (!bleManagerInstance) {
     bleManagerInstance = new BleManager();
   }
@@ -77,9 +89,32 @@ interface UseBluetoothConnectionReturn {
   stopMonitoring: () => void;
 }
 
+const WEB_NOOP_RETURN: UseBluetoothConnectionReturn = {
+  isBleAvailable: false,
+  isBluetoothEnabled: false,
+  isScanning: false,
+  connectedDevice: null,
+  nearbyDevices: [],
+  isClassicBtAvailable: false,
+  classicAudioDevice: null,
+  error: null,
+  isMonitoring: false,
+  startScan: async () => {},
+  stopScan: () => {},
+  connectToDevice: async () => {},
+  disconnectDevice: async () => {},
+  setAsCarDevice: () => {},
+  setClassicAsCarDevice: () => {},
+  startMonitoring: () => {},
+  stopMonitoring: () => {},
+};
+
 export function useBluetoothConnection(
   options: UseBluetoothConnectionOptions = {},
 ): UseBluetoothConnectionReturn {
+  // 웹에서는 블루투스 기능 사용 불가 - 안전한 기본값 반환
+  if (Platform.OS === 'web') return WEB_NOOP_RETURN;
+
   const {
     autoMonitor = true,
     scanDuration = 10000,
@@ -157,7 +192,7 @@ export function useBluetoothConnection(
   useEffect(() => {
     // 현재 연결 상태 확인 함수
     const checkCurrentClassicBt = () => {
-      if (!isClassicBtAvailable()) return;
+      if (!isClassicBtAvailableNative()) return;
 
       const current = getConnectedBluetoothAudio();
       if (current) {
@@ -186,7 +221,7 @@ export function useBluetoothConnection(
 
     // 이벤트 기반 감지
     let eventSub: { remove: () => void } | null = null;
-    if (isClassicBtAvailable()) {
+    if (isClassicBtAvailableNative()) {
       eventSub = addBluetoothAudioListener((event) => {
         if (event.connected && event.deviceName) {
           const device: ClassicAudioDevice = {
@@ -311,7 +346,7 @@ export function useBluetoothConnection(
 
       try {
         setError(null);
-        const connected: Device = await bleManager.current.connectToDevice(
+        const connected = await bleManager.current.connectToDevice(
           device.id,
           { timeout: 10000 },
         );
@@ -455,7 +490,7 @@ export function useBluetoothConnection(
     isScanning,
     connectedDevice,
     nearbyDevices,
-    isClassicBtAvailable: isClassicBtAvailable(),
+    isClassicBtAvailable: isClassicBtAvailableNative(),
     classicAudioDevice,
     error,
     isMonitoring,

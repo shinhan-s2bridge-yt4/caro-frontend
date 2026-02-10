@@ -1,4 +1,4 @@
-import { Pressable, View, Text, Modal, ActivityIndicator, ScrollView, Switch, Image } from 'react-native';
+import { Platform, Pressable, View, Text, Modal, ActivityIndicator, ScrollView, Switch, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
@@ -7,7 +7,12 @@ import { MainButton } from '@/components/common/Button/MainButton';
 import { Toast } from '@/components/common/Toast/Toast';
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
+
+// 네이티브 전용 - 웹에서는 import하지 않음
+let Location: any = null;
+if (Platform.OS !== 'web') {
+  Location = require('expo-location');
+}
 import { useDrivingStore, formatElapsedTime, formatDistance } from '@/stores/drivingStore';
 import { useDriveTracking, reverseGeocodeToAddress } from '@/hooks/useDriveTracking';
 import { useBluetoothConnection, type BleDevice } from '@/hooks/useBluetoothConnection';
@@ -409,13 +414,15 @@ export default function HomeScreen() {
       // 현재 위치(도착지) 역지오코딩
       let endLocationName = '알 수 없는 위치';
       try {
-        const currentPos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
-        endLocationName = await reverseGeocodeToAddress(
-          currentPos.coords.latitude,
-          currentPos.coords.longitude,
-        );
+        if (Location) {
+          const currentPos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          endLocationName = await reverseGeocodeToAddress(
+            currentPos.coords.latitude,
+            currentPos.coords.longitude,
+          );
+        }
       } catch {
         console.warn('종료 위치 역지오코딩 실패');
       }

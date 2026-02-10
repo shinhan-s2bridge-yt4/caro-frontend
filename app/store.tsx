@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View, Image } from 'react-native';
-import Barcode from 'react-native-barcode-svg';
+import { Platform, Pressable, ScrollView, Text, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// 네이티브 전용 바코드 컴포넌트 - 웹에서는 텍스트 대체
+let Barcode: any = null;
+if (Platform.OS !== 'web') {
+  Barcode = require('react-native-barcode-svg').default;
+}
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { borderRadius, colors, typography } from '@/theme';
@@ -747,16 +752,24 @@ export default function StoreScreen() {
                         gap: 8,
                       }}
                     >
-                      <Barcode
-                        value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
-                        format="CODE128"
-                        height={52}
-                        maxWidth={280}
-                        singleBarWidth={2}
-                        lineColor="#000000"
-                        backgroundColor="#FFFFFF"
-                        onError={(err: Error) => console.log('Barcode error:', err)}
-                      />
+                      {Barcode ? (
+                        <Barcode
+                          value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
+                          format="CODE128"
+                          height={52}
+                          maxWidth={280}
+                          singleBarWidth={2}
+                          lineColor="#000000"
+                          backgroundColor="#FFFFFF"
+                          onError={(err: Error) => console.log('Barcode error:', err)}
+                        />
+                      ) : (
+                        <View style={{ height: 52, justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body2Medium, color: colors.coolNeutral[60], letterSpacing: 4 }}>
+                            {couponDetail?.barcodeNumber || selectedCoupon.id}
+                          </Text>
+                        </View>
+                      )}
                       <Text
                         style={{
                           fontFamily: typography.fontFamily.pretendard,
@@ -1032,16 +1045,24 @@ export default function StoreScreen() {
                         gap: 8,
                       }}
                     >
-                      <Barcode
-                        value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
-                        format="CODE128"
-                        height={150}
-                        maxWidth={310}
-                        singleBarWidth={5}
-                        lineColor="#000000"
-                        backgroundColor="#FFFFFF"
-                        onError={(err: Error) => console.log('Barcode error:', err)}
-                      />
+                      {Barcode ? (
+                        <Barcode
+                          value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
+                          format="CODE128"
+                          height={150}
+                          maxWidth={310}
+                          singleBarWidth={5}
+                          lineColor="#000000"
+                          backgroundColor="#FFFFFF"
+                          onError={(err: Error) => console.log('Barcode error:', err)}
+                        />
+                      ) : (
+                        <View style={{ height: 150, justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.h2Semibold, color: colors.coolNeutral[60], letterSpacing: 6 }}>
+                            {couponDetail?.barcodeNumber || selectedCoupon.id}
+                          </Text>
+                        </View>
+                      )}
                       <Text
                         style={{
                           fontFamily: typography.fontFamily.pretendard,
