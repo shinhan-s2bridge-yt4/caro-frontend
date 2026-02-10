@@ -290,6 +290,7 @@ export default function CoinScreen() {
     date: string | null;
     location: string | null;
     amount: number | null;
+    suggestedCategory: import('@/services/ocrService').OcrSuggestedCategory;
   }) => {
     // 날짜 적용 (YYYY-MM-DD → 한글 형식)
     if (ocrResult.date) {
@@ -312,6 +313,11 @@ export default function CoinScreen() {
     if (ocrResult.location) {
       setAddPlace(ocrResult.location);
     }
+
+    // 추천 카테고리 적용
+    if (ocrResult.suggestedCategory) {
+      setAddCategory(ocrResult.suggestedCategory);
+    }
   };
 
   // OCR 실행 공통 로직
@@ -326,6 +332,7 @@ export default function CoinScreen() {
       if (ocrResult.date) recognized.push('날짜');
       if (ocrResult.location) recognized.push('장소');
       if (ocrResult.amount) recognized.push('금액');
+      if (ocrResult.suggestedCategory) recognized.push('카테고리');
 
       if (recognized.length > 0) {
         Alert.alert('OCR 완료', `${recognized.join(', ')}이(가) 자동 입력되었습니다.\n확인 후 수정해주세요.`);
@@ -1039,7 +1046,7 @@ export default function CoinScreen() {
       <Modal
         visible={isCarSelectOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setIsCarSelectOpen(false)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
@@ -1144,7 +1151,7 @@ export default function CoinScreen() {
                               color: isSelected ? colors.primary[10] : colors.coolNeutral[40],
                             }}
                           >
-                            {car.brandName} {car.modelName}
+                            {car.brandName} {car.modelName} {car.variant}
                           </Text>
 
                           <View
@@ -1193,7 +1200,7 @@ export default function CoinScreen() {
       <Modal
         visible={isAddExpenseOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
@@ -1387,7 +1394,7 @@ export default function CoinScreen() {
                                 color: colors.primary[50],
                               }}
                             >
-                              {selectedCar ? `${selectedCar.brandName} ${selectedCar.modelName}` : '차량 없음'}
+                              {selectedCar ? `${selectedCar.brandName} ${selectedCar.modelName} ${selectedCar.variant}` : '차량 없음'}
                             </Text>
 
                             <View

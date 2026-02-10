@@ -5,6 +5,7 @@ import type {
   DrivingRecordsRequest,
   DrivingRecordsResponse,
   DrivingSummary,
+  TodayDrivingRecordsResponse,
   CreateDrivingRecordRequest,
   CreateDrivingRecordResponse,
 } from '@/types/drivingRecord';
@@ -32,6 +33,14 @@ export async function getDrivingSummary(params: {
 }): Promise<DrivingSummary> {
   const { data } = await apiClient.get<ApiResponse<DrivingSummary>>(
     '/api/v1/driving-records/summary',
+  );
+
+  return data.data;
+}
+
+export async function getTodayDrivingRecords(): Promise<TodayDrivingRecordsResponse> {
+  const { data } = await apiClient.get<ApiResponse<TodayDrivingRecordsResponse>>(
+    '/api/v1/driving-records/today',
   );
 
   return data.data;

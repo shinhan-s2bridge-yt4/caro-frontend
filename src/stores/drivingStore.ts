@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { addPoint as persistPoint, startSession as startPersistSession } from '@/services/routePersistService';
 
 export type DrivingStatus = 'idle' | 'driving' | 'paused';
 
@@ -95,6 +96,9 @@ export const useDrivingStore = create<DrivingState>((set, get) => ({
 
   // 운행 시작
   startDriving: () => {
+    // 경로 영속화 세션 시작 (블루투스 자동 운행 포함)
+    startPersistSession().catch(console.warn);
+
     set({
       status: 'driving',
       startTime: Date.now(),
@@ -142,6 +146,9 @@ export const useDrivingStore = create<DrivingState>((set, get) => ({
       
       // 최소 이동 거리 필터링 (GPS 오차 제거, 5m 이상일 때만)
       if (distance >= 0.005) {
+        // 로컬 디스크에 영속화 (앱 크래시 대비)
+        persistPoint(location.latitude, location.longitude, location.timestamp);
+
         set((state) => ({
           totalDistanceKm: state.totalDistanceKm + distance,
           locations: [...state.locations, location],

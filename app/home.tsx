@@ -15,9 +15,16 @@ import { useBluetoothSettingsStore } from '@/stores/bluetoothSettingsStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import { useAuthStore } from '@/stores/authStore';
-import { createDrivingRecord } from '@/services/drivingRecordService';
+import { createDrivingRecord, getTodayDrivingRecords } from '@/services/drivingRecordService';
+import type { DrivingRecord } from '@/types/drivingRecord';
+import { setPrimaryCar } from '@/services/vehicleService';
 import { fetchPointHistory, fetchPointEstimate, fetchPendingPoints, claimPoints, checkAttendance, fetchAttendanceStatus, type PointHistory } from '@/services/rewardService';
+import { fetchDashboard } from '@/services/profileService';
+import { syncWidgetData, calculateProgressRatio } from '@/hooks/useWidgetSync';
+import { getSessionRoute, clearSession, getOrphanedSession } from '@/services/routePersistService';
 
+import BRightIcon from '../assets/icons/bright.svg';
+import BoxIcon from '../assets/icons/box.svg';
 import BCarIcon from '../assets/icons/bcar.svg';
 import GCarIcon from '../assets/icons/gcar.svg';
 import CarOcarIcon from '../assets/icons/carocar.svg';
@@ -35,6 +42,7 @@ import WXIcon from '../assets/icons/w_x.svg';
 import CalendarIcon from '../assets/icons/calendar.svg';
 import LogoIcon from '../assets/icons/logo.svg';
 import YCoinIcon from '../assets/icons/ycoin.svg';
+import SirenIcon from '../assets/icons/siren.svg';
 import YPointIcon from '../assets/icons/ypoint.svg';
 import RCarIcon from '../assets/icons/rcar.svg';
 import RCalIcon from '../assets/icons/rcal.svg';
@@ -46,10 +54,39 @@ import Day4Icon from '../assets/icons/Day4.svg';
 import Day5Icon from '../assets/icons/Day5.svg';
 import Day6Icon from '../assets/icons/Day6.svg';
 import Day7Icon from '../assets/icons/Day7.svg';
+import UpIcon from '../assets/icons/UpIcon.svg';
+import DownIcon from '../assets/icons/DownIcon.svg';
+import B1Icon from '../assets/icons/b1.svg';
+import B2Icon from '../assets/icons/b2.svg';
+import B3Icon from '../assets/icons/b3.svg';
+import B4Icon from '../assets/icons/b4.svg';
+import B5Icon from '../assets/icons/b5.svg';
+import B6Icon from '../assets/icons/b6.svg';
+import B7Icon from '../assets/icons/b7.svg';
+import B8Icon from '../assets/icons/b8.svg';
+import B9Icon from '../assets/icons/b9.svg';
+
+const DRIVE_NUMBER_ICONS = [B1Icon, B2Icon, B3Icon, B4Icon, B5Icon, B6Icon, B7Icon, B8Icon, B9Icon];
 
 // 포인트 포맷 헬퍼
 function formatDateOnly(isoDate: string): string {
   return isoDate.slice(0, 10);
+}
+
+function formatTimeHHMM(isoDate: string): string {
+  const d = new Date(isoDate);
+  const h = d.getHours().toString().padStart(2, '0');
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function formatDuration(startISO: string, endISO: string): string {
+  const diffMs = new Date(endISO).getTime() - new Date(startISO).getTime();
+  const totalSec = Math.max(0, Math.floor(diffMs / 1000));
+  const hh = Math.floor(totalSec / 3600).toString().padStart(2, '0');
+  const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+  const ss = (totalSec % 60).toString().padStart(2, '0');
+  return `${hh} : ${mm} : ${ss}`;
 }
 
 function formatPointAmount(amount: number) {
@@ -70,6 +107,8 @@ export default function HomeScreen() {
   const [isCarSelectModalVisible, setIsCarSelectModalVisible] = useState(false);
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [isBtModalVisible, setIsBtModalVisible] = useState(false);
+  const [expandedDriveIndices, setExpandedDriveIndices] = useState<Set<number>>(new Set());
+  const [todayRecords, setTodayRecords] = useState<DrivingRecord[]>([]);
   const [pointHistories, setPointHistories] = useState<PointHistory[]>([]);
   const [attendanceStreak, setAttendanceStreak] = useState(0);
   const [isAttendanceChecked, setIsAttendanceChecked] = useState(false);
@@ -116,6 +155,77 @@ export default function HomeScreen() {
       setSelectedCarId(cars[0].id);
     }
   }, [cars, selectedCarId]);
+
+  // 오늘의 운행 기록 조회
+  useEffect(() => {
+    if (!accessToken) return;
+    getTodayDrivingRecords()
+      .then((res) => setTodayRecords(res.records))
+      .catch((err) => console.warn('오늘의 운행 기록 조회 실패:', err));
+  }, [accessToken]);
+
+  // 앱 시작 시 미전송 경로 데이터 복구 (앱 크래시 후 재시작 대비)
+  useEffect(() => {
+    if (!accessToken || !selectedCarId) return;
+    (async () => {
+      try {
+        const orphaned = await getOrphanedSession();
+        if (!orphaned || orphaned.points.length === 0) return;
+
+        console.log(`[RoutePersist] 미전송 경로 발견: ${orphaned.points.length}개 좌표, 세션 ${orphaned.sessionId}`);
+
+        const startDate = new Date(orphaned.startTime);
+        const endPoint = orphaned.points[orphaned.points.length - 1];
+        const endDate = new Date(endPoint.t);
+
+        // 미전송 데이터 재전송 시도
+        await createDrivingRecord({
+          request: {
+            memberCarId: selectedCarId,
+            startDateTime: startDate.toISOString(),
+            endDateTime: endDate.toISOString(),
+            distanceKm: 0, // 서버에서 좌표 기반으로 재계산 필요 시 0 전송
+            startLocation: '복구된 운행',
+            endLocation: '복구된 운행',
+            routeCoordinates: orphaned.points,
+          },
+          accessToken,
+        });
+
+        await clearSession();
+        console.log('[RoutePersist] 미전송 경로 복구 완료');
+
+        // 오늘의 운행 기록 새로고침
+        getTodayDrivingRecords()
+          .then((res) => setTodayRecords(res.records))
+          .catch(() => {});
+      } catch (err) {
+        console.warn('[RoutePersist] 미전송 경로 복구 실패 (다음 시작 시 재시도):', err);
+      }
+    })();
+  }, [accessToken, selectedCarId]);
+
+  // 위젯 데이터 동기화 (앱 시작 시)
+  useEffect(() => {
+    if (!accessToken) return;
+    (async () => {
+      try {
+        const [dashboardData, pendingData] = await Promise.all([
+          fetchDashboard(),
+          fetchPendingPoints(),
+        ]);
+        const distance = dashboardData.totalDistanceKm;
+        const points = pendingData.totalPendingPoints;
+        syncWidgetData({
+          totalDistanceKm: distance,
+          pendingPoints: points,
+          progressRatio: calculateProgressRatio(distance),
+        });
+      } catch (err) {
+        console.warn('위젯 데이터 동기화 실패:', err);
+      }
+    })();
+  }, [accessToken]);
 
   // 포인트 이력 및 출석 현황 조회
   useEffect(() => {
@@ -184,6 +294,25 @@ export default function HomeScreen() {
     error: trackingError,
   } = useDriveTracking();
 
+  // 운행 중 실시간 위젯 동기화 (1분 간격)
+  useEffect(() => {
+    if (drivingStatus !== 'driving') return;
+    const interval = setInterval(() => {
+      syncWidgetData({
+        totalDistanceKm,
+        pendingPoints: 0,
+        progressRatio: calculateProgressRatio(totalDistanceKm),
+      });
+    }, 60000);
+    // 운행 시작 시 즉시 1회 동기화
+    syncWidgetData({
+      totalDistanceKm,
+      pendingPoints: 0,
+      progressRatio: calculateProgressRatio(totalDistanceKm),
+    });
+    return () => clearInterval(interval);
+  }, [drivingStatus, totalDistanceKm]);
+
   // 운행 상태에 따른 텍스트
   const statusText = useMemo(() => {
     if (drivingStatus === 'driving') {
@@ -208,19 +337,33 @@ export default function HomeScreen() {
   // 미수령 운행 포인트
   const [pendingPoints, setPendingPoints] = useState(0);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isClaimAnimating, setIsClaimAnimating] = useState(false);
 
   // 포인트 받기
   const handleClaimPoints = useCallback(async () => {
     if (isClaiming || pendingPoints <= 0) return;
     setIsClaiming(true);
+    setIsClaimAnimating(true);
     try {
       await claimPoints();
       // 미수령 포인트 새로고침
       const data = await fetchPendingPoints();
       setPendingPoints(data.totalPendingPoints);
+      // 위젯 데이터 동기화
+      fetchDashboard().then((dashboard) => {
+        syncWidgetData({
+          totalDistanceKm: dashboard.totalDistanceKm,
+          pendingPoints: data.totalPendingPoints,
+          progressRatio: calculateProgressRatio(dashboard.totalDistanceKm),
+        });
+      }).catch(() => {});
     } catch (err) {
       console.warn('포인트 수령 실패:', err);
     } finally {
+      // gif 애니메이션을 1초간 보여준 뒤 원래 아이콘으로 복귀
+      setTimeout(() => {
+        setIsClaimAnimating(false);
+      }, 1000);
       setIsClaiming(false);
     }
   }, [isClaiming, pendingPoints]);
@@ -241,7 +384,7 @@ export default function HomeScreen() {
         const granted = await requestPermissions();
         if (!granted) return;
       }
-      startDriving();
+      startDriving(); // 내부에서 경로 영속화 세션도 자동 시작됨
     }
   };
 
@@ -281,6 +424,9 @@ export default function HomeScreen() {
       const startDateTime = startDate.toISOString();
       const endDateTime = endTime.toISOString();
 
+      // 로컬 디스크에서 영속화된 경로 좌표 읽기
+      const routeCoordinates = await getSessionRoute();
+
       // API 호출
       if (accessToken && selectedCarId) {
         const requestBody = {
@@ -290,13 +436,20 @@ export default function HomeScreen() {
           distanceKm: Math.round(distance * 100) / 100,
           startLocation: startLoc || '알 수 없는 위치',
           endLocation: endLocationName,
+          ...(routeCoordinates.length > 0 && { routeCoordinates }),
         };
-        console.log('운행 기록 저장 요청:', JSON.stringify(requestBody, null, 2));
+        console.log('운행 기록 저장 요청:', JSON.stringify({
+          ...requestBody,
+          routeCoordinates: `[${routeCoordinates.length}개 좌표]`,
+        }, null, 2));
 
         await createDrivingRecord({
           request: requestBody,
           accessToken,
         });
+
+        // 서버 전송 성공 → 로컬 세션 정리
+        await clearSession();
       }
     } catch (err: any) {
       console.error('운행 기록 저장 실패:', err);
@@ -308,6 +461,20 @@ export default function HomeScreen() {
       resetDriving();
       setIsToastVisible(true);
       setIsSaving(false);
+      // 운행 기록 저장 후 오늘의 운행 기록 새로고침
+      getTodayDrivingRecords()
+        .then((res) => setTodayRecords(res.records))
+        .catch(() => {});
+      // 운행 기록 저장 후 위젯 데이터 동기화
+      Promise.all([fetchDashboard(), fetchPendingPoints()])
+        .then(([dashboard, pending]) => {
+          syncWidgetData({
+            totalDistanceKm: dashboard.totalDistanceKm,
+            pendingPoints: pending.totalPendingPoints,
+            progressRatio: calculateProgressRatio(dashboard.totalDistanceKm),
+          });
+        })
+        .catch(() => {});
     }
   }, [accessToken, selectedCarId, resetDriving]);
 
@@ -355,34 +522,30 @@ export default function HomeScreen() {
     return cars.find((car) => car.id === selectedCarId) || cars[0];
   }, [cars, selectedCarId]);
 
-  // 차량 선택 핸들러
-  const handleCarSelect = (carId: number) => {
+  const { loadProfile } = useProfileStore();
+
+  // 차량 선택 핸들러 (대표 차량 변경 API 호출)
+  const handleCarSelect = async (carId: number) => {
     setSelectedCarId(carId);
     setIsCarSelectModalVisible(false);
+    try {
+      await setPrimaryCar(carId);
+      // 대표 차량 변경 후 프로필 새로고침
+      if (accessToken) {
+        await loadProfile(accessToken);
+      }
+    } catch (err) {
+      console.warn('대표 차량 변경 실패:', err);
+    }
   };
 
   // 프로필 스토어에서 이름 가져오기
   const userName = useProfileStore((s) => s.name) || '사용자';
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: topToggle === 1 ? colors.coolNeutral[10] : colors.background.default }}>
-    <View style={{ flex: 1, backgroundColor: topToggle === 1 ? colors.coolNeutral[10] : colors.background.default }}>
-      {/* 드롭다운 열려있을 때 배경 터치로 닫기 */}
-      {isCarSelectModalVisible && (
-        <Pressable
-          onPress={() => setIsCarSelectModalVisible(false)}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 5,
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="dismiss-car-dropdown"
-        />
-      )}
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
+    <View style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
+      {/* 드롭다운 닫기 오버레이는 드롭다운과 동일한 stacking context에서 처리 */}
       <View
         style={{
           flex: 1,
@@ -401,7 +564,7 @@ export default function HomeScreen() {
               paddingVertical: 12,
             }}
           >
-            <LogoIcon height={24} width={85} />
+            <LogoIcon height={33} width={85} />
             <ToggleButton
               options={toggleOptions}
               value={topToggle}
@@ -438,17 +601,86 @@ export default function HomeScreen() {
 
             {topToggle === 0 && (
             <View style={{ gap: 24 }}>
+              {/* 블루투스 자동 운행 카드 */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="bluetooth-settings"
+                onPress={() => setIsBtModalVisible(true)}
+                style={{
+                  backgroundColor: isMonitoring && activeDeviceId
+                    ? colors.primary[10]
+                    : colors.background.default,
+                  borderRadius: 18,
+                  borderWidth: isMonitoring && activeDeviceId ? 1 : 0,
+                  borderColor: colors.primary[30],
+                  paddingHorizontal: 20,
+                  paddingVertical: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View style={{ flex: 1, gap: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: connectedDevice || classicAudioDevice
+                          ? colors.primary[50]
+                          : isMonitoring && activeDeviceId
+                            ? colors.primary[30]
+                            : colors.coolNeutral[30],
+                      }}
+                    />
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Bold,
+                        color: connectedDevice || classicAudioDevice
+                          ? colors.primary[60]
+                          : colors.coolNeutral[70],
+                      }}
+                    >
+                      {connectedDevice
+                        ? `${connectedDevice.name} 연결됨`
+                        : classicAudioDevice
+                          ? `${classicAudioDevice.name} 연결됨`
+                          : activeDeviceId && autoStartEnabled
+                            ? '블루투스 자동 운행 대기 중'
+                            : '블루투스 자동 운행'}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.body3Medium,
+                      color: colors.coolNeutral[40],
+                      marginLeft: 16,
+                    }}
+                  >
+                    {connectedDevice || classicAudioDevice
+                      ? '자동으로 운행이 시작되었어요'
+                      : pairedDevices.length > 0
+                        ? '차량 블루투스 연결 시 자동 운행 시작'
+                        : '탭하여 차량 블루투스를 등록하세요'}
+                  </Text>
+                </View>
+                <RightIcon width={20} height={20} />
+              </Pressable>
+
               {/* Today Drive Card */}
               <View
                 style={{
                   backgroundColor: colors.coolNeutral[10],
                   borderRadius: 20,
                   padding: 18,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.06,
-                  shadowRadius: 10,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 3,
+                  shadowColor: 'rgb(144, 144, 144)',
+                  shadowOpacity: 0.4,
+                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 0 },
+                  elevation: 5,
                   zIndex: 10,
                 }}
               >
@@ -481,7 +713,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/* 차량 선택 버튼 */}
-                <View style={{ marginTop: 12, position: 'relative' }}>
+                <View style={{ marginTop: 12, position: 'relative', zIndex: isCarSelectModalVisible ? 100 : 0 }}>
                   {selectedCar ? (
                   <Pressable
                     onPress={() => setIsCarSelectModalVisible(!isCarSelectModalVisible)}
@@ -506,7 +738,7 @@ export default function HomeScreen() {
                         color: colors.primary[50],
                       }}
                     >
-                      {selectedCar.brandName} {selectedCar.modelName}
+                      {selectedCar.brandName} {selectedCar.modelName} {selectedCar.variant}
                     </Text>
                     <View
                       style={{
@@ -626,6 +858,23 @@ export default function HomeScreen() {
                     </View>
                   )}
 
+                  {/* 드롭다운 배경 닫기 오버레이 */}
+                  {isCarSelectModalVisible && (
+                    <Pressable
+                      onPress={() => setIsCarSelectModalVisible(false)}
+                      style={{
+                        position: 'absolute',
+                        top: -500,
+                        left: -500,
+                        width: 3000,
+                        height: 3000,
+                        zIndex: 99,
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="dismiss-car-dropdown"
+                    />
+                  )}
+
                   {/* 차량 선택 드롭다운 */}
                   {isCarSelectModalVisible && (
                     <View
@@ -680,7 +929,8 @@ export default function HomeScreen() {
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               paddingVertical: 14,
-                              paddingHorizontal: 12,
+                              paddingRight: 12,
+                              paddingLeft: 25,
                               backgroundColor: isSelected ? colors.primary[10] : 'transparent',
                             }}
                             accessibilityRole="button"
@@ -697,11 +947,11 @@ export default function HomeScreen() {
                                   fontFamily: typography.fontFamily.pretendard,
                                   ...typography.styles.body3Semibold,
                                   color: isSelected ? colors.primary[50] : colors.coolNeutral[40],
-                                  width: 80,
+                                  width: 100,
                                   marginLeft: 8,
                                 }}
                               >
-                                {car.brandName} {car.modelName}
+                                {car.brandName} {car.modelName} {car.variant}
                               </Text>
                               <View
                                 style={{
@@ -834,79 +1084,266 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              {/* 블루투스 자동 운행 카드 */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="bluetooth-settings"
-                onPress={() => setIsBtModalVisible(true)}
+              {/* 운행 기록 카드 목록 */}
+              {todayRecords.length > 0 && (
+              <View style={{ gap: 20 }}>
+              <Text
                 style={{
-                  backgroundColor: isMonitoring && activeDeviceId
-                    ? colors.primary[10]
-                    : colors.coolNeutral[10],
-                  borderRadius: 18,
-                  borderWidth: isMonitoring && activeDeviceId ? 1 : 0,
-                  borderColor: colors.primary[30],
-                  paddingHorizontal: 20,
-                  paddingVertical: 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  shadowColor: '#000',
-                  shadowOpacity: 0.04,
-                  shadowRadius: 6,
-                  shadowOffset: { width: 0, height: 2 },
-                  elevation: 2,
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body3Medium,
+                  color: colors.coolNeutral[40],
+                  textAlign: 'center',
                 }}
               >
-                <View style={{ flex: 1, gap: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 999,
-                        backgroundColor: connectedDevice || classicAudioDevice
-                          ? colors.primary[50]
-                          : isMonitoring && activeDeviceId
-                            ? colors.primary[30]
-                            : colors.coolNeutral[30],
-                      }}
-                    />
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body2Bold,
-                        color: connectedDevice || classicAudioDevice
-                          ? colors.primary[60]
-                          : colors.coolNeutral[70],
-                      }}
-                    >
-                      {connectedDevice
-                        ? `${connectedDevice.name} 연결됨`
-                        : classicAudioDevice
-                          ? `${classicAudioDevice.name} 연결됨`
-                          : activeDeviceId && autoStartEnabled
-                            ? '블루투스 자동 운행 대기 중'
-                            : '블루투스 자동 운행'}
-                    </Text>
-                  </View>
-                  <Text
+                가장 최근 운행 두 건만 보여요!
+              </Text>
+              {todayRecords.slice(0, 2).map((record, index) => {
+                const isExpanded = expandedDriveIndices.has(index);
+                const NumberIcon = DRIVE_NUMBER_ICONS[index] || DRIVE_NUMBER_ICONS[0];
+                const carName = `${record.vehicleBrandName} ${record.vehicleModelName}`;
+                return (
+                  <View
+                    key={record.id}
                     style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body3Medium,
-                      color: colors.coolNeutral[40],
-                      marginLeft: 16,
+                      backgroundColor: colors.background.default,
+                      borderRadius: 20,
+                      padding: 20,
                     }}
                   >
-                    {connectedDevice || classicAudioDevice
-                      ? '자동으로 운행이 시작되었어요'
-                      : pairedDevices.length > 0
-                        ? '차량 블루투스 연결 시 자동 운행 시작'
-                        : '탭하여 차량 블루투스를 등록하세요'}
-                  </Text>
-                </View>
-                <RightIcon width={20} height={20} />
-              </Pressable>
+                    {/* 헤더: 번호 + 운행 + 토글 */}
+                    <Pressable
+                      onPress={() => setExpandedDriveIndices((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(index)) next.delete(index);
+                        else next.add(index);
+                        return next;
+                      })}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`toggle-drive-${index}`}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <NumberIcon width={16} height={16} />
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body1Semibold,
+                            color: colors.coolNeutral[80],
+                          }}
+                        >
+                          운행
+                        </Text>
+                      </View>
+                      {isExpanded ? (
+                        <UpIcon width={22} height={22} />
+                      ) : (
+                        <DownIcon width={22} height={22} />
+                      )}
+                    </Pressable>
+
+                    {/* 요약 정보: 주행거리, 운행시간, 적립 포인트 */}
+                    <View style={{ marginTop: 16, gap: 4 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          주행거리
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.primary[60],
+                          }}
+                        >
+                          {record.distanceKm} km
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          운행시간
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.primary[60],
+                          }}
+                        >
+                          {formatDuration(record.startDateTime, record.endDateTime)}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          적립 포인트
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <PointIcon width={18} height={18} />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body2Semibold,
+                              color: colors.primary[60],
+                            }}
+                          >
+                            {record.earnedPoints} P
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* 확장: 차량 정보 + 출발/도착 */}
+                    {isExpanded && (
+                      <View style={{ marginTop: 16, gap: 12 }}>
+                        {/* 구분선 */}
+                        <View style={{ height: 1, backgroundColor: colors.coolNeutral[30] }} />
+                        {/* 차량 정보 바 */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: colors.coolNeutral[10],
+                            borderRadius: 12,
+                            paddingVertical: 10,
+                            paddingHorizontal: 20,
+                            gap: 10,
+                          }}
+                        >
+                          <BCarIcon width={20} height={20} />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: colors.primary[50],
+                            }}
+                          >
+                            {carName}
+                          </Text>
+                          <View style={{ width: 1.4, height: 17, backgroundColor: colors.primary[50] }} />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: colors.primary[50],
+                            }}
+                          >
+                            {record.vehicleVariantName}
+                          </Text>
+                        </View>
+
+                        {/* 출발/도착 */}
+                        <View style={{ gap: 8, paddingHorizontal: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View
+                              style={{
+                                backgroundColor: colors.primary[50],
+                                borderRadius: 6,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionSemibold,
+                                  color: colors.coolNeutral[10],
+                                }}
+                              >
+                                출발
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Semibold,
+                                  color: colors.coolNeutral[70],
+                                }}
+                              >
+                                {formatTimeHHMM(record.startDateTime)}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Medium,
+                                  color: colors.coolNeutral[40],
+                                  flexShrink: 1,
+                                }}
+                                numberOfLines={1}
+                              >
+                                {record.startLocation}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View
+                              style={{
+                                backgroundColor: colors.coolNeutral[50],
+                                borderRadius: 6,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionSemibold,
+                                  color: colors.coolNeutral[10],
+                                }}
+                              >
+                                도착
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Semibold,
+                                  color: colors.coolNeutral[70],
+                                }}
+                              >
+                                {formatTimeHHMM(record.endDateTime)}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body3Medium,
+                                  color: colors.coolNeutral[40],
+                                  flexShrink: 1,
+                                }}
+                                numberOfLines={1}
+                              >
+                                {record.endLocation}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+              </View>
+              )}
 
               {/* Invite Banner */}
               <Pressable
@@ -918,29 +1355,53 @@ export default function HomeScreen() {
                 style={{
                   backgroundColor: colors.primary[20],
                   borderRadius: 18,
-                  height: 76,
+                  height: 81,
                   paddingHorizontal: 20,
-                  paddingVertical: 16,
+                  paddingVertical: 12,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <HandIcon width={58} height={39} />
+                <BoxIcon width={59} height={59} />
+                <View style={{ flex: 1, gap: 4, marginLeft: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body1Bold,
+                        color: colors.primary[50],
+                      }}
+                    >
+                      출석체크 & 리워드
+                    </Text>
+                    <BRightIcon width={24} height={24} />
+                  </View>
                   <Text
                     style={{
                       fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body1Bold,
-                      color: colors.primary[70],
+                      ...typography.styles.body2Medium,
+                      color: colors.coolNeutral[10],
                     }}
                   >
-                    친구 초대하고 1000P 받기 !
+                    매일 출석하고 포인트 받기
                   </Text>
                 </View>
-                <RightIcon width={24} height={24} />
               </Pressable>
             </View>
+            )}
+
+            {/* GIF 프리로드 (포인트 탭 진입 시) */}
+            {topToggle === 1 && (
+              <>
+                <Image
+                  source={require('../assets/icons/point.gif')}
+                  style={{ width: 0, height: 0, position: 'absolute' }}
+                />
+                <Image
+                  source={require('../assets/icons/coin.gif')}
+                  style={{ width: 0, height: 0, position: 'absolute' }}
+                />
+              </>
             )}
 
             {/* 포인트 콘텐츠 */}
@@ -959,24 +1420,48 @@ export default function HomeScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <YCoinIcon height={169} />
+                  {isClaimAnimating ? (
+                    <Image
+                      source={require('../assets/icons/point.gif')}
+                      style={{ width: 169, height: 169, marginTop: -18 }}
+                    />
+                  ) : (
+                    <YCoinIcon height={169} style={{ marginTop: -18 }} />
+                  )}
                   <Text
                     style={{
                       fontFamily: typography.fontFamily.pretendard,
                       ...typography.styles.h1Bold,
                       color: colors.coolNeutral[90],
+                      marginTop: -36,
                     }}
                   >
                     {pendingPoints.toLocaleString('ko-KR')}
                   </Text>
                 </View>
                 <MainButton
-                  label={isClaiming ? '수령 중...' : '포인트 받기'}
+                  label="포인트 받기"
                   alwaysPrimary
                   disabled={pendingPoints <= 0 || isClaiming}
                   onPress={handleClaimPoints}
-                  containerStyle={{ width: 130, backgroundColor: pendingPoints > 0 ? '#FEB802' : colors.coolNeutral[30] }}
+                  containerStyle={{
+                    width: 130,
+                    backgroundColor: isClaiming ? '#CD8402' : pendingPoints > 0 ? '#FEB802' : colors.coolNeutral[30],
+                  }}
+                  labelStyle={isClaiming ? { color: '#FEDE51' } : undefined}
                 />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <SirenIcon width={24} height={24} />
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.captionMedium,
+                      color: colors.coolNeutral[40],
+                    }}
+                  >
+                    오늘 자정이 지나면 사라져요
+                  </Text>
+                </View>
               </View>
 
               {/* 구분선 */}
@@ -1549,10 +2034,19 @@ export default function HomeScreen() {
       <Modal
         visible={isBtModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setIsBtModalVisible(false)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)', justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={() => {
+              stopScan();
+              setIsBtModalVisible(false);
+            }}
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+            accessibilityRole="button"
+            accessibilityLabel="dismiss-bt-modal"
+          />
           <View
             style={{
               backgroundColor: colors.coolNeutral[10],
@@ -1637,91 +2131,7 @@ export default function HomeScreen() {
                 />
               </View>
 
-              {/* 현재 연결된 Classic BT 오디오 디바이스 */}
-              {classicAudioDevice && (
-                <View style={{ paddingVertical: 16, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.coolNeutral[20] }}>
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body2Bold,
-                      color: colors.coolNeutral[60],
-                    }}
-                  >
-                    현재 연결된 블루투스 오디오
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      backgroundColor: colors.primary[10],
-                      borderRadius: 12,
-                      padding: 14,
-                      borderWidth: 1,
-                      borderColor: colors.primary[30],
-                    }}
-                  >
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <View
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 999,
-                            backgroundColor: colors.primary[50],
-                          }}
-                        />
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body2Bold,
-                            color: colors.primary[60],
-                          }}
-                        >
-                          {classicAudioDevice.name}
-                        </Text>
-                      </View>
-                      <Text
-                        style={{
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body3Medium,
-                          color: colors.coolNeutral[40],
-                          marginLeft: 16,
-                        }}
-                      >
-                        {pairedDevices.some((d) => d.id === classicAudioDevice.id)
-                          ? '등록됨'
-                          : '연결됨 · 등록하면 자동 운행 시작'}
-                      </Text>
-                    </View>
-                    {!pairedDevices.some((d) => d.id === classicAudioDevice.id) && (
-                      <Pressable
-                        onPress={handlePairClassicDevice}
-                        style={{
-                          paddingHorizontal: 14,
-                          paddingVertical: 8,
-                          borderRadius: 10,
-                          backgroundColor: colors.primary[50],
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="register-classic-bt"
-                      >
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Semibold,
-                            color: colors.coolNeutral[10],
-                          }}
-                        >
-                          등록
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              )}
-
-              {/* 등록된 디바이스 목록 */}
+              {/* 차량 블루투스 */}
               {pairedDevices.length > 0 && (
                 <View style={{ paddingVertical: 16, gap: 8 }}>
                   <Text
@@ -1731,94 +2141,100 @@ export default function HomeScreen() {
                       color: colors.coolNeutral[60],
                     }}
                   >
-                    등록된 차량 블루투스
+                    차량 블루투스
                   </Text>
-                  {pairedDevices.map((device) => (
-                    <View
-                      key={device.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor:
-                          device.id === activeDeviceId
+
+                  {/* 등록된 디바이스 목록 */}
+                  {pairedDevices.map((device) => {
+                    const isClassicConnected = classicAudioDevice?.name === device.name;
+                    const isBleConnected = connectedDevice?.id === device.id;
+                    const isConnected = isClassicConnected || isBleConnected;
+                    const isActive = device.id === activeDeviceId;
+
+                    return (
+                      <View
+                        key={device.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          backgroundColor: isConnected || isActive
                             ? colors.primary[10]
                             : colors.background.default,
-                        borderRadius: 12,
-                        padding: 14,
-                        borderWidth: device.id === activeDeviceId ? 1 : 0,
-                        borderColor: colors.primary[30],
-                      }}
-                    >
-                      <Pressable
-                        style={{ flex: 1, gap: 2 }}
-                        onPress={() => setActiveDevice(device.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`select-bt-${device.id}`}
+                          borderRadius: 12,
+                          padding: 14,
+                          borderWidth: isConnected || isActive ? 1 : 0,
+                          borderColor: colors.primary[30],
+                        }}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 999,
-                              backgroundColor:
-                                connectedDevice?.id === device.id
+                        <Pressable
+                          style={{ flex: 1, gap: 2 }}
+                          onPress={() => setActiveDevice(device.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`select-bt-${device.id}`}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 999,
+                                backgroundColor: isConnected
                                   ? colors.primary[50]
                                   : colors.coolNeutral[30],
-                            }}
-                          />
+                              }}
+                            />
+                            <Text
+                              style={{
+                                fontFamily: typography.fontFamily.pretendard,
+                                ...typography.styles.body2Bold,
+                                color: isConnected || isActive
+                                  ? colors.primary[60]
+                                  : colors.coolNeutral[70],
+                              }}
+                            >
+                              {device.name}
+                            </Text>
+                          </View>
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.body2Bold,
-                              color:
-                                device.id === activeDeviceId
-                                  ? colors.primary[60]
-                                  : colors.coolNeutral[70],
+                              ...typography.styles.body3Medium,
+                              color: isConnected ? colors.primary[40] : colors.coolNeutral[40],
+                              marginLeft: 16,
                             }}
                           >
-                            {device.name}
+                            {isConnected
+                              ? '연결됨'
+                              : isActive
+                                ? '자동 연결 활성'
+                                : '탭하여 활성화'}
                           </Text>
-                        </View>
-                        <Text
+                        </Pressable>
+                        <Pressable
+                          onPress={() => removePairedDevice(device.id)}
                           style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Medium,
-                            color: colors.coolNeutral[40],
-                            marginLeft: 16,
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            backgroundColor: colors.coolNeutral[20],
                           }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`remove-bt-${device.id}`}
                         >
-                          {connectedDevice?.id === device.id
-                            ? '연결됨'
-                            : device.id === activeDeviceId
-                              ? '자동 연결 활성'
-                              : '탭하여 활성화'}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => removePairedDevice(device.id)}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 8,
-                          backgroundColor: colors.coolNeutral[20],
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`remove-bt-${device.id}`}
-                      >
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Medium,
-                            color: colors.coolNeutral[50],
-                          }}
-                        >
-                          삭제
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ))}
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[50],
+                            }}
+                          >
+                            삭제
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 

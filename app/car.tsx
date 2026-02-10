@@ -297,10 +297,6 @@ export default function CarScreen() {
   const openDatePicker = useCallback(() => setIsDatePickerOpen(true), []);
   const closeDatePicker = useCallback(() => setIsDatePickerOpen(false), []);
 
-  // 검색창 표시 텍스트 (yearMonth 기반)
-  const dateQueryLabel = yearMonth
-    ? `${yearMonth.split('-')[0]}. ${yearMonth.split('-')[1]}`
-    : `${currentYear}. ${String(currentMonth).padStart(2, '0')}`;
 
   const applyDatePicker = useCallback(() => {
     const newYearMonth = `${pickedYear}-${String(pickedMonth).padStart(2, '0')}`;
@@ -416,12 +412,12 @@ export default function CarScreen() {
                       flex: 1,
                       fontFamily: typography.fontFamily.pretendard,
                       ...typography.styles.body1Semibold,
-                      color: colors.coolNeutral[90],
+                      color: colors.coolNeutral[60],
                     }}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {dateQueryLabel}
+                    날짜 검색
                   </Text>
                   <SearchIcon width={20} height={20} />
                 </Pressable>

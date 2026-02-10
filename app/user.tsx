@@ -48,7 +48,7 @@ export default function UserScreen() {
   const profileData = {
     name: name || '사용자',
     email: email || '',
-    carModel: primaryCar ? `${primaryCar.brandName} ${primaryCar.modelName}` : '',
+    carModel: primaryCar ? `${primaryCar.brandName} ${primaryCar.modelName} ${primaryCar.variant}` : '',
     carNumber: primaryCar?.registrationNumber || '',
   };
   
@@ -373,6 +373,7 @@ export default function UserScreen() {
                 {/* 메뉴 리스트 */}
                 <View>
                   {[
+                    '내 차 정보',
                     '설정',
                     '알림 설정',
                     '개인정보 보호',
@@ -383,7 +384,13 @@ export default function UserScreen() {
                     const row = (
                       <Pressable
                         key={label}
-                        onPress={label === '로그아웃' ? handleLogoutPress : () => {}}
+                        onPress={
+                          label === '로그아웃'
+                            ? handleLogoutPress
+                            : label === '내 차 정보'
+                              ? () => router.push('/my-car')
+                              : () => {}
+                        }
                         accessibilityRole="button"
                         accessibilityLabel={`mypage-${label}`}
                         style={{

@@ -68,3 +68,16 @@ export async function fetchMyCars(accessToken: string): Promise<PrimaryCar[]> {
 
   return data.data ?? [];
 }
+
+// 인증 필요 — apiClient 사용
+export async function setPrimaryCar(memberCarId: number): Promise<string> {
+  const { data } = await apiClient.patch<ApiResponse<string>>(
+    `/api/v1/cars/${memberCarId}/primary`,
+  );
+  return data.data;
+}
+
+// 인증 필요 — apiClient 사용
+export async function deleteMyCar(memberCarId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/cars/${memberCarId}`);
+}

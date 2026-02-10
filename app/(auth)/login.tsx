@@ -101,7 +101,7 @@ export default function LoginScreen() {
     >
     {/* 로고 */}
     <View style={{ alignItems: 'center', marginBottom: 80 }}>
-      <LogoIcon width={150} height={42} />
+      <LogoIcon width={148} height={57} />
     </View>
 
     <View style={{ gap: 20, width: 334 }}>

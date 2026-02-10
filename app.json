@@ -12,9 +12,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "scheme": "caro",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.caro.app.yhjyhw",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.caro.app.yhjyhw"
+        ]
+      },
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
         "NSBluetoothPeripheralUsageDescription": "차량 블루투스 연결을 통해 자동으로 운행 기록을 시작합니다.",
@@ -44,7 +50,15 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ]
     },
     "web": {
@@ -63,7 +77,8 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "react-native-ble-plx"
+      "react-native-ble-plx",
+      "@bacons/apple-targets"
     ]
   }
 }

@@ -84,8 +84,8 @@ export function useDriveTracking(
 ): UseDriveTrackingReturn {
   const {
     accuracy = Location.Accuracy.High,
-    updateInterval = 1000,
-    distanceFilter = 1,
+    updateInterval = 3000,
+    distanceFilter = 5,
     enableBackground = true,
   } = options;
 

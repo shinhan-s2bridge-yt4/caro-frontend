@@ -1,7 +1,10 @@
+export type OcrSuggestedCategory = 'FUEL' | 'MAINTENANCE' | 'PARKING' | 'TOLL' | 'CAR_WASH' | 'INSURANCE' | 'ACCESSORY' | null;
+
 export interface OcrResult {
   date: string | null; // YYYY-MM-DD 형식
   location: string | null;
   amount: number | null;
+  suggestedCategory: OcrSuggestedCategory;
   rawText: string;
 }
 
@@ -141,12 +144,13 @@ export async function performOcr(imageUri: string): Promise<OcrResult> {
   // 날짜, 장소, 금액 파싱
   const date = parseDate(rawText);
   const amount = parseAmount(rawText);
-  const location = parseLocation(rawText);
+  const { location, suggestedCategory } = parseLocation(rawText);
 
   return {
     date,
     location,
     amount,
+    suggestedCategory,
     rawText,
   };
 }
@@ -244,8 +248,9 @@ function parseAmount(text: string): number | null {
  * 장소/상호명 파싱
  * - 주유소, 주차장, 정비소 등 관련 키워드
  * - 상호명 패턴 인식
+ * - 매칭된 키워드 그룹에 따라 추천 카테고리도 함께 반환
  */
-function parseLocation(text: string): string | null {
+function parseLocation(text: string): { location: string | null; suggestedCategory: OcrSuggestedCategory } {
   // 주유소 관련 키워드
   const gasStationKeywords = [
     /([가-힣]+주유소)/,
@@ -281,17 +286,67 @@ function parseLocation(text: string): string | null {
     /([가-힣]+IC)/,
   ];
 
-  const allPatterns = [
-    ...gasStationKeywords,
-    ...parkingKeywords,
-    ...maintenanceKeywords,
-    ...tollKeywords,
+  // 세차 관련 키워드
+  const carWashKeywords = [
+    /([가-힣]+세차)/,
+    /(세차[가-힣]*)/,
+    /([가-힣]+워시)/,
+    /(카워시[가-힣]*)/,
+    /(버블[가-힣]*세차)/,
+    /(자동세차[가-힣]*)/,
+    /(손세차[가-힣]*)/,
   ];
 
-  for (const pattern of allPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return match[1].trim();
+  // 보험 관련 키워드
+  const insuranceKeywords = [
+    /([가-힣]+보험)/,
+    /(삼성화재[가-힣]*)/,
+    /(현대해상[가-힣]*)/,
+    /(DB손해보험[가-힣]*)/i,
+    /(KB손해보험[가-힣]*)/i,
+    /(메리츠화재[가-힣]*)/,
+    /(한화손해보험[가-힣]*)/,
+    /(롯데손해보험[가-힣]*)/,
+    /(흥국화재[가-힣]*)/,
+    /(자동차보험[가-힣]*)/,
+    /(차량보험[가-힣]*)/,
+  ];
+
+  // 자동차 용품 관련 키워드
+  const accessoryKeywords = [
+    /([가-힣]+용품)/,
+    /(오토바이[가-힣]*용품)/,
+    /(자동차용품[가-힣]*)/,
+    /(차량용품[가-힣]*)/,
+    /(불스원[가-힣]*)/,
+    /(타이어[가-힣]*)/,
+    /([가-힣]+타이어)/,
+    /(한국타이어[가-힣]*)/,
+    /(금호타이어[가-힣]*)/,
+    /(넥센타이어[가-힣]*)/,
+    /(블랙박스[가-힣]*)/,
+    /(네비게이션[가-힣]*)/,
+    /(오토존[가-힣]*)/,
+    /(다이소[가-힣]*차량)/,
+  ];
+
+  // 카테고리별로 그룹화하여 매칭
+  const categoryPatterns: { category: OcrSuggestedCategory; patterns: RegExp[] }[] = [
+    { category: 'FUEL', patterns: gasStationKeywords },
+    { category: 'PARKING', patterns: parkingKeywords },
+    { category: 'MAINTENANCE', patterns: maintenanceKeywords },
+    { category: 'TOLL', patterns: tollKeywords },
+    { category: 'CAR_WASH', patterns: carWashKeywords },
+    { category: 'INSURANCE', patterns: insuranceKeywords },
+    { category: 'ACCESSORY', patterns: accessoryKeywords },
+  ];
+
+  for (const { category, patterns } of categoryPatterns) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return { location: match[1].trim(), suggestedCategory: category };
+      }
     }
   }
 
@@ -299,8 +354,11 @@ function parseLocation(text: string): string | null {
   const businessNameRegex = /\(주\)\s*([가-힣a-zA-Z0-9]+)|([가-힣]{2,10})\s*\(주\)/;
   const businessMatch = text.match(businessNameRegex);
   if (businessMatch) {
-    return (businessMatch[1] || businessMatch[2])?.trim() ?? null;
+    return {
+      location: (businessMatch[1] || businessMatch[2])?.trim() ?? null,
+      suggestedCategory: null,
+    };
   }
 
-  return null;
+  return { location: null, suggestedCategory: null };
 }
