@@ -8,8 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
-import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import { useMyCarStore } from '@/stores/myCarStore';
+import { fetchDashboard, type DashboardData } from '@/services/profileService';
 import TextInput from '@/components/common/Input/TextInput';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
@@ -19,6 +19,7 @@ import XIcon from '../assets/icons/x_icon.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
 import PlusIcon from '../assets/icons/plus.svg';
 import BCheckIcon from '../assets/icons/bcheck.svg';
+import PointIcon from '../assets/icons/point.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 
@@ -27,21 +28,21 @@ export default function UserScreen() {
   const { logout, isLoggingOut } = useAuth();
   const accessToken = useAuthStore((state) => state.accessToken);
   const { name, email, primaryCar, loadProfile } = useProfileStore();
-  const { summary, fetchSummary } = useDrivingRecordStore();
   const { cars, loadMyCars } = useMyCarStore();
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isCarNumberFocused, setIsCarNumberFocused] = useState(false);
   const [isCarModelDropdownOpen, setIsCarModelDropdownOpen] = useState(false);
   
-  // API에서 프로필 데이터, 운행 요약, 차량 목록 로드
+  // API에서 프로필 데이터, 대시보드, 차량 목록 로드
   useEffect(() => {
     if (accessToken) {
       loadProfile(accessToken);
-      fetchSummary({ accessToken });
+      fetchDashboard().then(setDashboard).catch(() => {});
       loadMyCars(accessToken);
     }
-  }, [accessToken, loadProfile, fetchSummary, loadMyCars]);
+  }, [accessToken, loadProfile, loadMyCars]);
   
   // 화면 표시용 프로필 데이터
   const profileData = {
@@ -287,7 +288,7 @@ export default function UserScreen() {
                         color: colors.coolNeutral[10],
                       }}
                     >
-                      {summary ? `${summary.totalDistanceKm.toFixed(1)} km` : '- km'}
+                      {dashboard ? `${dashboard.totalDistanceKm.toFixed(1)} km` : '- km'}
                     </Text>
                     <Text
                       style={{
@@ -309,15 +310,18 @@ export default function UserScreen() {
                   />
 
                   <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body1Semibold,
-                        color: colors.coolNeutral[10],
-                      }}
-                    >
-                      {summary ? `${summary.totalEarnedPoints.toLocaleString()} P` : '- P'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <PointIcon width={18} height={18} />
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body1Semibold,
+                          color: colors.coolNeutral[10],
+                        }}
+                      >
+                        {dashboard ? `${dashboard.availablePoints.toLocaleString()}` : '-'}
+                      </Text>
+                    </View>
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
@@ -345,7 +349,7 @@ export default function UserScreen() {
                         color: colors.coolNeutral[10],
                       }}
                     >
-                      {summary ? summary.totalDrivingCount : '-'}
+                      {dashboard ? `${dashboard.totalDrivingRecordCount}` : '-'}
                     </Text>
                     <Text
                       style={{
@@ -354,7 +358,7 @@ export default function UserScreen() {
                         color: colors.coolNeutral[10],
                       }}
                     >
-                      운행 횟수
+                      총 운행 횟수
                     </Text>
                   </View>
                 </View>

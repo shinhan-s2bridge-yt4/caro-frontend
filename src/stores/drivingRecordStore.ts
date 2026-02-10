@@ -8,6 +8,7 @@ type DrivingRecordState = {
   yearMonth: string | null;
   nextCursor: number | null;
   hasNext: boolean;
+  monthlyCount: number;
   isLoading: boolean;
   isLoadingMore: boolean;
   error: string | null;
@@ -29,6 +30,7 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
   yearMonth: null,
   nextCursor: null,
   hasNext: false,
+  monthlyCount: 0,
   isLoading: false,
   isLoadingMore: false,
   error: null,
@@ -51,6 +53,7 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
         records: response.records,
         nextCursor: response.nextCursor,
         hasNext: response.hasNext,
+        monthlyCount: response.monthlyCount,
         isLoading: false,
       });
     } catch (e) {
@@ -101,6 +104,7 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
       yearMonth: null,
       nextCursor: null,
       hasNext: false,
+      monthlyCount: 0,
       isLoading: false,
       isLoadingMore: false,
       error: null,

@@ -1,113 +1,63 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View, Image, Modal } from 'react-native';
+import { Pressable, ScrollView, Text, View, Image } from 'react-native';
 import Barcode from 'react-native-barcode-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import CouponTab from '@/components/common/Category/CouponTab';
 import CategoryTab from '@/components/common/Category/CategoryTab';
-import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  fetchRewardCategories,
+  fetchRewardCoupons,
+  fetchMemberPoints,
+  fetchPointHistory,
+  fetchMemberCoupons,
+  fetchMemberCouponDetail,
+  type MemberPoints,
+  type RewardCategory,
+  type RewardCoupon,
+  type PointHistory,
+  type MemberCoupon,
+  type MemberCouponDetail,
+} from '@/services/rewardService';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
+import WDownIcon from '../assets/icons/wdown.svg';
 import UpIcon from '../assets/icons/UpIcon.svg';
 import XIcon from '../assets/icons/x_icon.svg';
 import BlueDotIcon from '../assets/icons/bluedot.svg';
 import PointIcon from '../assets/icons/point.svg';
-import BCoinIcon from '../assets/icons/bcoin.svg';
 import Coffee1Icon from '../assets/icons/coffee1.svg';
-import Coffee2Icon from '../assets/icons/coffee2.svg';
-import Coffee3Icon from '../assets/icons/coffee3.svg';
-import BugerIcon from '../assets/icons/buger.svg';
 import CalendarIcon from '../assets/icons/calendar.svg';
-import ClockIcon from '../assets/icons/clock.svg';
+
 import GcarIcon from '../assets/icons/gcar.svg';
+import RcarIcon from '../assets/icons/rcar.svg';
+import RcalIcon from '../assets/icons/rcal.svg';
+import RcouponIcon from '../assets/icons/rcoupon.svg';
+import WupIcon from '../assets/icons/wup.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 
-// 스토어 카테고리
-const STORE_CATEGORIES = [
-  { key: 'all', label: '전체' },
-  { key: 'popular', label: '인기' },
-  { key: 'discount', label: '할인 높은 순' },
-  { key: 'gas', label: '주유소' },
-  { key: 'cafe', label: '카페' },
+// 고정 카테고리 (정렬 기준 sort 파라미터에 매핑)
+const FIXED_CATEGORIES = [
+  { key: 'ALL', label: '전체' },
+  { key: 'POPULAR', label: '인기' },
+  { key: 'CHEAP', label: '할인 높은 순' },
 ] as const;
 
-type StoreCategoryKey = typeof STORE_CATEGORIES[number]['key'];
+// 고정 카테고리 key 목록 (sort 파라미터로 사용되는 값)
+const FIXED_CATEGORY_KEYS = FIXED_CATEGORIES.map((c) => c.key as string);
 
-// 스토어 상품 타입
-type StoreProduct = {
-  id: string;
-  brand: string;
-  name: string;
-  price: number;
-  buyerCount: number;
-  imageType: 'coffee1' | 'coffee2' | 'coffee3' | 'buger';
-  category: StoreCategoryKey[];
-};
+type StoreCategoryKey = string;
 
-// 스토어 상품 데이터
-const STORE_PRODUCTS: StoreProduct[] = [
-  {
-    id: 'p1',
-    brand: '스타벅스',
-    name: '아이스 커피 더블샷 Tall 모바일 교환권',
-    price: 6500,
-    buyerCount: 3270,
-    imageType: 'coffee1',
-    category: ['all', 'popular', 'cafe'],
-  },
-  {
-    id: 'p2',
-    brand: '스타벅스',
-    name: '아이스 카페모카 Tall 모바일 교환권',
-    price: 5000,
-    buyerCount: 3270,
-    imageType: 'coffee2',
-    category: ['all', 'cafe'],
-  },
-  {
-    id: 'p3',
-    brand: '스타벅스',
-    name: '아이스 아메리카노 Tall 모바일 교환권',
-    price: 6500,
-    buyerCount: 3270,
-    imageType: 'coffee3',
-    category: ['all', 'discount', 'cafe'],
-  },
-  {
-    id: 'p4',
-    brand: '스타벅스',
-    name: '더오치 맥시멈 3 세트 교환권',
-    price: 5000,
-    buyerCount: 3270,
-    imageType: 'buger',
-    category: ['all', 'popular'],
-  },
-];
+const IMAGE_BASE_URL = 'https://api.caro.today';
 
-// 상품 이미지 컴포넌트
-function ProductImage({ type, size = 100 }: { type: StoreProduct['imageType']; size?: number | string }) {
-  switch (type) {
-    case 'coffee1':
-      return <Coffee1Icon width={size} height={size} />;
-    case 'coffee2':
-      return <Coffee2Icon width={size} height={size} />;
-    case 'coffee3':
-      return <Coffee3Icon width={size} height={size} />;
-    case 'buger':
-      return <BugerIcon width={size} height={size} />;
-    default:
-      return <Coffee1Icon width={size} height={size} />;
-  }
-}
-
-// 상품 카드 컴포넌트
-function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: () => void }) {
+// 상품 카드 컴포넌트 (API 응답 기반)
+function ProductCard({ product, onPress }: { product: RewardCoupon; onPress?: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -127,9 +77,18 @@ function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: ()
           borderRadius: borderRadius.md,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        <ProductImage type={product.imageType} size="100%" />
+        {product.imageUrl ? (
+          <Image
+            source={{ uri: `${IMAGE_BASE_URL}${product.imageUrl}` }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Coffee1Icon width="60%" height="60%" />
+        )}
       </View>
 
       {/* 브랜드명 */}
@@ -140,7 +99,7 @@ function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: ()
           color: colors.coolNeutral[60],
         }}
       >
-        {product.brand}
+        {product.brandName}
       </Text>
 
       {/* 상품명 + 가격 */}
@@ -153,7 +112,7 @@ function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: ()
           }}
           numberOfLines={2}
         >
-          {product.name}
+          {product.itemName}
         </Text>
 
         {/* 가격 */}
@@ -166,7 +125,7 @@ function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: ()
               color: colors.coolNeutral[60],
             }}
           >
-            {product.price.toLocaleString('ko-KR')}
+            {product.requiredPoints.toLocaleString('ko-KR')}
           </Text>
         </View>
       </View>
@@ -179,22 +138,16 @@ function ProductCard({ product, onPress }: { product: StoreProduct; onPress?: ()
           color: colors.coolNeutral[40],
         }}
       >
-        {product.buyerCount.toLocaleString('ko-KR')}명이 받아감
+        {product.redeemCount.toLocaleString('ko-KR')}명이 받아감
       </Text>
     </Pressable>
   );
 }
 
-type PointHistoryItem = {
-  id: string;
-  title: string;
-  amount: number; // + 적립, - 사용
-  date: string; // YYYY-MM-DD
-  meta?: {
-    durationLabel?: string; // e.g. "38분 운행"
-    distanceLabel?: string; // e.g. "15.3 km"
-  };
-};
+// ISO 날짜 문자열에서 YYYY-MM-DD만 추출
+function formatDateOnly(isoDate: string): string {
+  return isoDate.slice(0, 10);
+}
 
 function formatPointAmount(amount: number) {
   const abs = Math.abs(amount).toLocaleString('ko-KR');
@@ -202,89 +155,25 @@ function formatPointAmount(amount: number) {
 }
 
 function formatPointTotal(amount: number) {
-  return `${amount.toLocaleString('ko-KR')} P`;
+  return `${amount.toLocaleString('ko-KR')}`;
 }
 
-// 보유쿠폰 타입
-type MyCoupon = {
-  id: string;
-  brand: string;
-  name: string;
-  expiryDate: string; // YYYY-MM-DD
-  price: number;
-  barcode: string;
-  usageLocation: string;
-  exchangeDate: string; // YYYY-MM-DD
-};
-
-// 남은 일수 계산
-function getDaysRemaining(expiryDate: string): number {
+// 남은 일수 계산 (ISO 날짜 문자열 지원)
+function getDaysRemaining(expiredAt: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
+  const expiry = new Date(expiredAt);
   expiry.setHours(0, 0, 0, 0);
   const diffTime = expiry.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 }
 
-// 랜덤 바코드 생성 함수
-function generateRandomBarcode(): string {
-  let barcode = '880';
-  for (let i = 0; i < 10; i++) {
-    barcode += Math.floor(Math.random() * 10).toString();
-  }
-  return barcode;
-}
-
-// 보유쿠폰 더미 데이터
-const MY_COUPONS: MyCoupon[] = [
-  {
-    id: 'c1',
-    brand: '스타벅스',
-    name: '[스타벅스] 3천원 모바일 쿠폰',
-    expiryDate: '2026-02-09',
-    price: 5000,
-    barcode: '8801234567890',
-    usageLocation: '스타벅스 모든 매장',
-    exchangeDate: '2026-01-28',
-  },
-  {
-    id: 'c2',
-    brand: '스타벅스',
-    name: '[스타벅스] 3천원 모바일 쿠폰',
-    expiryDate: '2026-02-17',
-    price: 5000,
-    barcode: '8809876543210',
-    usageLocation: '스타벅스 모든 매장',
-    exchangeDate: '2026-01-28',
-  },
-  {
-    id: 'c3',
-    brand: '스타벅스',
-    name: '[스타벅스] 3천원 모바일 쿠폰',
-    expiryDate: '2026-02-17',
-    price: 5000,
-    barcode: '8801122334455',
-    usageLocation: '스타벅스 모든 매장',
-    exchangeDate: '2026-01-28',
-  },
-  {
-    id: 'c4',
-    brand: '스타벅스',
-    name: '[스타벅스] 3천원 모바일 쿠폰',
-    expiryDate: '2026-02-17',
-    price: 5000,
-    barcode: '8805566778899',
-    usageLocation: '스타벅스 모든 매장',
-    exchangeDate: '2026-01-28',
-  },
-];
-
-// 쿠폰 카드 컴포넌트
-function CouponCard({ coupon, onUse }: { coupon: MyCoupon; onUse?: () => void }) {
-  const daysRemaining = getDaysRemaining(coupon.expiryDate);
+// 쿠폰 카드 컴포넌트 (API 응답 기반)
+function CouponCard({ coupon, onUse }: { coupon: MemberCoupon; onUse?: () => void }) {
+  const daysRemaining = getDaysRemaining(coupon.expiredAt);
   const isUrgent = daysRemaining <= 7;
+  const expiryDateStr = formatDateOnly(coupon.expiredAt);
 
   return (
     <View
@@ -305,7 +194,7 @@ function CouponCard({ coupon, onUse }: { coupon: MyCoupon; onUse?: () => void })
             color: colors.coolNeutral[40],
           }}
         >
-          {coupon.brand}
+          {coupon.brandName}
         </Text>
 
         <Text
@@ -315,7 +204,7 @@ function CouponCard({ coupon, onUse }: { coupon: MyCoupon; onUse?: () => void })
             color: colors.coolNeutral[80],
           }}
         >
-          {coupon.name}
+          {coupon.itemName}
         </Text>
       </View>
 
@@ -338,55 +227,69 @@ function CouponCard({ coupon, onUse }: { coupon: MyCoupon; onUse?: () => void })
               color: colors.coolNeutral[40],
             }}
           >
-            {coupon.expiryDate}까지
+            {expiryDateStr}까지
           </Text>
         </View>
 
         {/* 포인트 + 사용하기 버튼 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <PointIcon width={14} height={14} />
-          <Text
-            style={{
-              fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.body3Bold,
-              color: colors.coolNeutral[40],
-            }}
-          >
-            {coupon.price.toLocaleString('ko-KR')}
-          </Text>
-        </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <PointIcon width={14} height={14} />
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.body3Bold,
+                color: colors.coolNeutral[40],
+              }}
+            >
+              {coupon.usedPoints.toLocaleString('ko-KR')}
+            </Text>
+          </View>
 
-        <Pressable
-          onPress={onUse}
-          style={{
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-            borderRadius: borderRadius.base,
-            backgroundColor: colors.primary[50],
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`use-coupon-${coupon.id}`}
-        >
-          <Text
+          <Pressable
+            onPress={onUse}
             style={{
-              fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.body3Semibold,
-              color: colors.coolNeutral[10],
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+              borderRadius: borderRadius.base,
+              backgroundColor: colors.primary[50],
             }}
+            accessibilityRole="button"
+            accessibilityLabel={`use-coupon-${coupon.id}`}
           >
-            사용하기
-          </Text>
-        </Pressable>
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.body3Semibold,
+                color: colors.coolNeutral[10],
+              }}
+            >
+              사용하기
+            </Text>
+          </Pressable>
         </View>
       </View>
     </View>
   );
 }
 
-function PointHistoryCard({ item }: { item: PointHistoryItem }) {
-  const isEarn = item.amount >= 0;
+function PointHistoryCard({ item }: { item: PointHistory }) {
+  const isEarn = item.pointChange >= 0;
   const amountColor = isEarn ? colors.primary[50] : colors.red[50];
+
+  // DRIVING 타입일 때 날짜와 거리 표시
+  const displayDate = item.type === 'DRIVING' && item.drivingDetail
+    ? formatDateOnly(item.drivingDetail.startDateTime)
+    : formatDateOnly(item.date);
+  const distanceKm = item.type === 'DRIVING' && item.drivingDetail
+    ? item.drivingDetail.distanceKm
+    : null;
+
+  const TypeIcon = item.type === 'DRIVING'
+    ? RcarIcon
+    : item.type === 'ATTENDANCE'
+      ? RcalIcon
+      : RcouponIcon;
 
   return (
     <View
@@ -394,50 +297,42 @@ function PointHistoryCard({ item }: { item: PointHistoryItem }) {
         width: '100%',
         borderRadius: borderRadius.lg,
         backgroundColor: colors.coolNeutral[20],
-        paddingHorizontal: 20,
-        paddingBottom: 12,
-        paddingTop: 20,
-        gap: 10,
+        padding: 20,
+        flexDirection: 'row',
+        gap: 12,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body2Semibold,
-            color: colors.coolNeutral[90],
-          }}
-        >
-          {item.title}
-        </Text>
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body2Bold,
-            color: amountColor,
-          }}
-        >
-          {formatPointAmount(item.amount)}
-        </Text>
-      </View>
+      {/* 타입 아이콘 */}
+      <TypeIcon width={44} height={44} />
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <CalendarIcon width={14} height={14} />
+      {/* 내용 */}
+      <View style={{ flex: 1, gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <Text
             style={{
               fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionMedium,
-              color: colors.coolNeutral[40],
+              ...typography.styles.body2Semibold,
+              color: colors.coolNeutral[90],
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            {item.description}
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body2Bold,
+              color: amountColor,
             }}
           >
-            {item.date}
+            {formatPointAmount(item.pointChange)}
           </Text>
         </View>
 
-        {item.meta?.durationLabel ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <ClockIcon width={14} height={14} />
+            <CalendarIcon width={14} height={14} />
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
@@ -445,34 +340,155 @@ function PointHistoryCard({ item }: { item: PointHistoryItem }) {
                 color: colors.coolNeutral[40],
               }}
             >
-              {item.meta.durationLabel}
+              {displayDate}
             </Text>
           </View>
-        ) : null}
 
-        {item.meta?.distanceLabel ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <GcarIcon width={14} height={14} />
+          {distanceKm != null ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <GcarIcon width={14} height={14} />
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.captionMedium,
+                  color: colors.coolNeutral[40],
+                }}
+              >
+                {distanceKm} km
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// 나의 포인트 카드 (펼침/접힘)
+function PointCard({
+  pointTotal,
+  isExpanded,
+  onToggle,
+  breakdown,
+}: {
+  pointTotal: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  breakdown: { attendance: number; driving: number; used: number };
+}) {
+  return (
+    <View
+      style={{
+        width: '100%',
+        borderRadius: borderRadius.lg,
+        overflow: 'hidden',
+      }}
+    >
+      {/* 파란 영역 */}
+      <Pressable
+        onPress={onToggle}
+        style={{
+          backgroundColor: colors.primary[50],
+          paddingHorizontal: 22,
+          paddingVertical: 20,
+          gap: 12,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body2Semibold,
+              color: colors.coolNeutral[10],
+              opacity: 0.95,
+            }}
+          >
+            나의 포인트
+          </Text>
+          {isExpanded ? (
+            <WupIcon width={22} height={22} />
+          ) : (
+            <WDownIcon width={22} height={22} />
+          )}
+        </View>
+        {!isExpanded && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PointIcon width={28} height={28} />
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionMedium,
-                color: colors.coolNeutral[40],
+                ...typography.styles.h1Bold,
+                color: colors.coolNeutral[10],
               }}
             >
-              {item.meta.distanceLabel}
+              {formatPointTotal(pointTotal)}
             </Text>
           </View>
-        ) : null}
-      </View>
+        )}
+      </Pressable>
+
+      {/* 펼쳐진 상세 영역 */}
+      {isExpanded && (
+        <View
+          style={{
+            backgroundColor: colors.coolNeutral[10],
+            paddingHorizontal: 20,
+            paddingBottom: 20,
+            paddingTop: 24,
+            gap: 24,
+          }}
+        >
+          {/* 항목들 */}
+          <View style={{ gap: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Medium, color: colors.coolNeutral[70] }}>
+                출석체크 포인트
+              </Text>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.coolNeutral[80] }}>
+                {breakdown.attendance.toLocaleString('ko-KR')}P
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Medium, color: colors.coolNeutral[70] }}>
+                운행기록 포인트
+              </Text>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.coolNeutral[80] }}>
+                {breakdown.driving.toLocaleString('ko-KR')}P
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Medium, color: colors.red[40] }}>
+                나의 차감 포인트
+              </Text>
+              <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.red[40] }}>
+                -{breakdown.used.toLocaleString('ko-KR')}P
+              </Text>
+            </View>
+          </View>
+
+          {/* 구분선 */}
+          <View style={{ height: 2, backgroundColor: colors.coolNeutral[80] }} />
+
+          {/* 현재 포인트 */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body2Bold, color: colors.coolNeutral[90] }}>
+              현재 포인트
+            </Text>
+            <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.h1Bold, color: colors.primary[50] }}>
+              {pointTotal.toLocaleString('ko-KR')} P
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 export default function StoreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { accessToken } = useAuthStore();
-  const { summary, fetchSummary } = useDrivingRecordStore();
+  const [memberPoints, setMemberPoints] = useState<MemberPoints | null>(null);
 
   const rewardTabs = useMemo(
     () => [
@@ -483,66 +499,110 @@ export default function StoreScreen() {
     [],
   );
   const [selectedTab, setSelectedTab] = useState<string>(rewardTabs[0]?.id ?? 'store');
-  const [storeCategory, setStoreCategory] = useState<StoreCategoryKey>('all');
+
+  // 외부에서 tab 파라미터로 탭 전환
+  useEffect(() => {
+    if (params.tab && typeof params.tab === 'string') {
+      setSelectedTab(params.tab);
+    }
+  }, [params.tab]);
+  const [storeCategory, setStoreCategory] = useState<StoreCategoryKey>('ALL');
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(4);
   const [visibleCouponCount, setVisibleCouponCount] = useState(4);
-  const [selectedCoupon, setSelectedCoupon] = useState<MyCoupon | null>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<MemberCoupon | null>(null);
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [isUsageGuideExpanded, setIsUsageGuideExpanded] = useState(false);
   const [isBarcodeLarge, setIsBarcodeLarge] = useState(false);
+  const [apiCategories, setApiCategories] = useState<RewardCategory[]>([]);
+  const [rewardCoupons, setRewardCoupons] = useState<RewardCoupon[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [pointHistories, setPointHistories] = useState<PointHistory[]>([]);
+  const [historyTotalCount, setHistoryTotalCount] = useState(0);
+  const [memberCoupons, setMemberCoupons] = useState<MemberCoupon[]>([]);
+  const [couponTotalCount, setCouponTotalCount] = useState(0);
+  const [couponDetail, setCouponDetail] = useState<MemberCouponDetail | null>(null);
+  const [isPointCardExpanded, setIsPointCardExpanded] = useState(false);
 
   // API에서 포인트 정보 가져오기
   useEffect(() => {
     if (accessToken) {
-      fetchSummary({ accessToken });
+      fetchMemberPoints()
+        .then(setMemberPoints)
+        .catch((err) => console.warn('포인트 조회 실패:', err));
     }
-  }, [accessToken, fetchSummary]);
+  }, [accessToken]);
 
-  const pointTotal = summary?.totalEarnedPoints ?? 0;
+  // API에서 리워드 카테고리 가져오기
+  useEffect(() => {
+    fetchRewardCategories()
+      .then((data) => setApiCategories(data))
+      .catch((err) => console.warn('카테고리 조회 실패:', err));
+  }, []);
 
-  // 카테고리별 필터링된 상품
-  const filteredProducts = useMemo(() => {
-    return STORE_PRODUCTS.filter((product) => product.category.includes(storeCategory));
+  // 고정 카테고리 + API 카테고리 결합
+  const storeCategories = useMemo(() => {
+    const fixed = FIXED_CATEGORIES.map((c) => ({ key: c.key, label: c.label }));
+    const dynamic = apiCategories.map((c) => ({
+      key: c.category,
+      label: c.categoryLabel,
+    }));
+    return [...fixed, ...dynamic];
+  }, [apiCategories]);
+
+  // 카테고리/정렬 변경 시 쿠폰 목록 API 호출
+  useEffect(() => {
+    const isFixedCategory = FIXED_CATEGORY_KEYS.includes(storeCategory);
+    const params = isFixedCategory
+      ? { sort: storeCategory, size: 20 }
+      : { category: storeCategory, size: 20 };
+
+    setCouponsLoading(true);
+    fetchRewardCoupons(params)
+      .then((data) => setRewardCoupons(data.rewardCoupons))
+      .catch((err) => {
+        console.warn('쿠폰 목록 조회 실패:', err);
+        setRewardCoupons([]);
+      })
+      .finally(() => setCouponsLoading(false));
   }, [storeCategory]);
 
-  const history = useMemo<PointHistoryItem[]>(
-    () => [
-      {
-        id: 'h1',
-        title: '운행적립',
-        amount: 153,
-        date: '2026-02-01',
-        meta: { durationLabel: '38분 운행', distanceLabel: '15.3 km' },
-      },
-      {
-        id: 'h2',
-        title: '운행적립',
-        amount: 153,
-        date: '2026-02-01',
-        meta: { durationLabel: '38분 운행', distanceLabel: '15.3 km' },
-      },
-      {
-        id: 'h3',
-        title: '스타벅스 3천원 모바일 교환권',
-        amount: -1500,
-        date: '2026-02-01',
-      },
-      {
-        id: 'h4',
-        title: '주유소 쿠폰 교환',
-        amount: -1500,
-        date: '2026-02-01',
-      },
-      {
-        id: 'h5',
-        title: '운행적립',
-        amount: 153,
-        date: '2026-02-01',
-        meta: { durationLabel: '38분 운행', distanceLabel: '15.3 km' },
-      },
-    ],
-    [],
-  );
+  const pointTotal = memberPoints?.availablePoints ?? 0;
+
+  const pointBreakdown = useMemo(() => ({
+    attendance: memberPoints?.totalAttendancePoints ?? 0,
+    driving: memberPoints?.totalDrivingPoints ?? 0,
+    used: memberPoints?.totalUsedPoints ?? 0,
+  }), [memberPoints]);
+
+  // 포인트 이력 API 호출 (모든 탭에서 breakdown 계산에 필요)
+  useEffect(() => {
+    fetchPointHistory()
+      .then((data) => {
+        setPointHistories(data.histories);
+        setHistoryTotalCount(data.totalCount);
+      })
+      .catch((err) => {
+        console.warn('포인트 이력 조회 실패:', err);
+        setPointHistories([]);
+        setHistoryTotalCount(0);
+      });
+  }, []);
+
+  // 보유쿠폰 API 호출
+  useEffect(() => {
+    if (selectedTab === 'coupon') {
+      fetchMemberCoupons()
+        .then((data) => {
+          setMemberCoupons(data.coupons);
+          setCouponTotalCount(data.totalCount);
+        })
+        .catch((err) => {
+          console.warn('보유쿠폰 조회 실패:', err);
+          setMemberCoupons([]);
+          setCouponTotalCount(0);
+        });
+    }
+  }, [selectedTab]);
 
   // 탭별 배경색
   const backgroundColor = selectedTab === 'point' ? colors.coolNeutral[10] : colors.background.default;
@@ -564,15 +624,24 @@ export default function StoreScreen() {
     return `${year} . ${month} . ${day}`;
   };
 
-  const handleCouponUse = (coupon: MyCoupon) => {
+  const handleCouponUse = async (coupon: MemberCoupon) => {
     setSelectedCoupon(coupon);
+    setCouponDetail(null);
     setIsCouponModalOpen(true);
     setIsUsageGuideExpanded(false);
+
+    try {
+      const detail = await fetchMemberCouponDetail(coupon.id);
+      setCouponDetail(detail);
+    } catch (err) {
+      console.warn('쿠폰 상세 조회 실패:', err);
+    }
   };
 
   const closeCouponModal = () => {
     setIsCouponModalOpen(false);
     setSelectedCoupon(null);
+    setCouponDetail(null);
     setIsBarcodeLarge(false);
   };
 
@@ -635,24 +704,34 @@ export default function StoreScreen() {
                         textAlign: 'center',
                       }}
                     >
-                      {selectedCoupon.name.replace('[스타벅스] ', '[스타벅스]\n')}
+                      {couponDetail
+                        ? `[${couponDetail.brandName}]\n${couponDetail.itemName}`
+                        : `[${selectedCoupon.brandName}]\n${selectedCoupon.itemName}`}
                     </Text>
 
-                    {/* 브랜드 로고 (placeholder) */}
-                    <View
-                      style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 40,
-                        backgroundColor: '#00704A',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
-                        STARBUCKS
-                      </Text>
-                    </View>
+                    {/* 브랜드 로고 */}
+                    {couponDetail?.imageUrl ? (
+                      <Image
+                        source={{ uri: `https://api.caro.today${couponDetail.imageUrl}` }}
+                        style={{ width: 80, height: 80, borderRadius: 40 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 40,
+                          backgroundColor: '#00704A',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
+                          {selectedCoupon.brandName}
+                        </Text>
+                      </View>
+                    )}
 
                     {/* 바코드 */}
                     <View
@@ -669,7 +748,7 @@ export default function StoreScreen() {
                       }}
                     >
                       <Barcode
-                        value={selectedCoupon.barcode}
+                        value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
                         format="CODE128"
                         height={52}
                         maxWidth={280}
@@ -685,7 +764,7 @@ export default function StoreScreen() {
                           color: colors.coolNeutral[80],
                         }}
                       >
-                        {selectedCoupon.barcode}
+                        {couponDetail?.barcodeNumber || selectedCoupon.id}
                       </Text>
                     </View>
                   </View>
@@ -712,7 +791,7 @@ export default function StoreScreen() {
                             color: colors.coolNeutral[90],
                           }}
                         >
-                          {formatExpiryDate(selectedCoupon.expiryDate)}
+                          {formatExpiryDate(couponDetail?.expiredAt || selectedCoupon.expiredAt)}
                         </Text>
                         <View
                           style={{
@@ -728,7 +807,7 @@ export default function StoreScreen() {
                               color: colors.coolNeutral[10],
                             }}
                           >
-                            D-{getDaysRemaining(selectedCoupon.expiryDate)}
+                            D-{getDaysRemaining(couponDetail?.expiredAt || selectedCoupon.expiredAt)}
                           </Text>
                         </View>
                       </View>
@@ -755,34 +834,36 @@ export default function StoreScreen() {
                           color: colors.coolNeutral[90],
                         }}
                       >
-                        {selectedCoupon.usageLocation}
+                        {(couponDetail?.brandName || selectedCoupon.brandName)} 모든 매장
                       </Text>
                     </View>
 
                     {/* 교환일 */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text
-                        style={{
-                          width: 70,
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body3Regular,
-                          color: colors.coolNeutral[50],
-                        }}
-                      >
-                        교환일
-                      </Text>
-                      <Text
-                        style={{
-                          flex: 1,
-                          textAlign: 'right',
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body2Semibold,
-                          color: colors.coolNeutral[90],
-                        }}
-                      >
-                        {formatExchangeDate(selectedCoupon.exchangeDate)}
-                      </Text>
-                    </View>
+                    {couponDetail?.exchangedAt && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            width: 70,
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Regular,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          교환일
+                        </Text>
+                        <Text
+                          style={{
+                            flex: 1,
+                            textAlign: 'right',
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.coolNeutral[90],
+                          }}
+                        >
+                          {formatExchangeDate(couponDetail.exchangedAt)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* 바코드 크게 보기 버튼 + 사용 안내 */}
@@ -923,7 +1004,9 @@ export default function StoreScreen() {
                       textAlign: 'center',
                     }}
                   >
-                    {selectedCoupon.name.replace('[스타벅스] ', '[스타벅스]\n')}
+                      {couponDetail
+                        ? `[${couponDetail.brandName}]\n${couponDetail.itemName}`
+                        : `[${selectedCoupon.brandName}]\n${selectedCoupon.itemName}`}
                   </Text>
 
                   {/* 큰 바코드 */}
@@ -950,7 +1033,7 @@ export default function StoreScreen() {
                       }}
                     >
                       <Barcode
-                        value={selectedCoupon.barcode}
+                        value={couponDetail?.barcodeNumber || String(selectedCoupon.id)}
                         format="CODE128"
                         height={150}
                         maxWidth={310}
@@ -966,7 +1049,7 @@ export default function StoreScreen() {
                           color: colors.coolNeutral[80],
                         }}
                       >
-                        {selectedCoupon.barcode}
+                        {couponDetail?.barcodeNumber || selectedCoupon.id}
                       </Text>
                     </View>
                   </View>
@@ -1039,47 +1122,12 @@ export default function StoreScreen() {
             <View style={{ paddingTop: 18, gap: 37.5 }}>
               {/* 포인트 카드 */}
               <View style={{ paddingHorizontal: 20 }}>
-                <View
-                  style={{
-                    width: '100%',
-                    borderRadius: borderRadius.lg,
-                    backgroundColor: colors.primary[50],
-                    paddingHorizontal: 22,
-                    paddingVertical: 20,
-                    gap: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body2Semibold,
-                      color: colors.coolNeutral[10],
-                      opacity: 0.95,
-                    }}
-                  >
-                    나의 포인트
-                  </Text>
-                  <View style={{ gap: 4 }}>
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.h1Bold,
-                        color: colors.coolNeutral[10],
-                      }}
-                    >
-                      {formatPointTotal(pointTotal)}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body3Regular,
-                        color: 'rgba(255,255,255,0.85)',
-                      }}
-                    >
-                      1km 당 1포인트 자동적립
-                    </Text>
-                  </View>
-                </View>
+                <PointCard
+                  pointTotal={pointTotal}
+                  isExpanded={isPointCardExpanded}
+                  onToggle={() => setIsPointCardExpanded((v) => !v)}
+                  breakdown={pointBreakdown}
+                />
               </View>
 
               {/* 카테고리 탭 + 상품 목록 */}
@@ -1089,7 +1137,7 @@ export default function StoreScreen() {
                   <CategoryTab
                     selected={storeCategory}
                     onSelect={setStoreCategory}
-                    categories={STORE_CATEGORIES as unknown as { key: StoreCategoryKey; label: string }[]}
+                    categories={storeCategories}
                     variant="store"
                     dividerAfterIndex={2}
                   />
@@ -1105,49 +1153,75 @@ export default function StoreScreen() {
                         color: colors.coolNeutral[90],
                       }}
                     >
-                      {STORE_CATEGORIES.find((c) => c.key === storeCategory)?.label ?? '전체'}
+                      {storeCategories.find((c) => c.key === storeCategory)?.label ?? '전체'}
                     </Text>
                   </View>
 
                   {/* 상품 그리드 */}
                   <View style={{ paddingHorizontal: 20, gap: 16 }}>
-                    {/* 2열 그리드로 상품 표시 */}
-                    {Array.from({ length: Math.ceil(filteredProducts.length / 2) }).map((_, rowIndex) => {
-                      const product1 = filteredProducts[rowIndex * 2];
-                      const product2 = filteredProducts[rowIndex * 2 + 1];
+                    {couponsLoading ? (
+                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.coolNeutral[40],
+                          }}
+                        >
+                          불러오는 중...
+                        </Text>
+                      </View>
+                    ) : rewardCoupons.length === 0 ? (
+                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.coolNeutral[40],
+                          }}
+                        >
+                          상품이 없습니다
+                        </Text>
+                      </View>
+                    ) : (
+                      /* 2열 그리드로 상품 표시 */
+                      Array.from({ length: Math.ceil(rewardCoupons.length / 2) }).map((_, rowIndex) => {
+                        const product1 = rewardCoupons[rowIndex * 2];
+                        const product2 = rewardCoupons[rowIndex * 2 + 1];
 
-                      const navigateToDetail = (product: typeof product1) => {
-                        router.push({
-                          pathname: '/store-detail',
-                          params: {
-                            id: product.id,
-                            brand: product.brand,
-                            name: product.name,
-                            price: product.price.toString(),
-                            imageType: product.imageType,
-                          },
-                        });
-                      };
+                        const navigateToDetail = (product: RewardCoupon) => {
+                          router.push({
+                            pathname: '/store-detail',
+                            params: {
+                              id: product.id.toString(),
+                              brand: product.brandName,
+                              name: product.itemName,
+                              price: product.requiredPoints.toString(),
+                              imageUrl: product.imageUrl,
+                            },
+                          });
+                        };
 
-                      return (
-                        <View key={rowIndex} style={{ flexDirection: 'row', gap: 19 }}>
-                          {product1 && (
-                            <ProductCard
-                              product={product1}
-                              onPress={() => navigateToDetail(product1)}
-                            />
-                          )}
-                          {product2 ? (
-                            <ProductCard
-                              product={product2}
-                              onPress={() => navigateToDetail(product2)}
-                            />
-                          ) : (
-                            <View style={{ flex: 1 }} />
-                          )}
-                        </View>
-                      );
-                    })}
+                        return (
+                          <View key={rowIndex} style={{ flexDirection: 'row', gap: 19 }}>
+                            {product1 && (
+                              <ProductCard
+                                product={product1}
+                                onPress={() => navigateToDetail(product1)}
+                              />
+                            )}
+                            {product2 ? (
+                              <ProductCard
+                                product={product2}
+                                onPress={() => navigateToDetail(product2)}
+                              />
+                            ) : (
+                              <View style={{ flex: 1 }} />
+                            )}
+                          </View>
+                        );
+                      })
+                    )}
                   </View>
                 </View>
               </View>
@@ -1155,47 +1229,12 @@ export default function StoreScreen() {
           ) : selectedTab === 'point' ? (
             <View style={{ paddingHorizontal: 20, paddingTop: 18, gap: 30 }}>
               {/* 포인트 카드 */}
-              <View
-                style={{
-                  width: '100%',
-                  borderRadius: borderRadius.lg,
-                  backgroundColor: colors.primary[50],
-                  paddingHorizontal: 22,
-                  paddingVertical: 20,
-                  gap: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body2Semibold,
-                    color: colors.coolNeutral[10],
-                    opacity: 0.95,
-                  }}
-                >
-                  나의 포인트
-                </Text>
-                <View style={{ gap: 4 }}>
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.h1Bold,
-                      color: colors.coolNeutral[10],
-                    }}
-                  >
-                    {formatPointTotal(pointTotal)}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body3Regular,
-                      color: 'rgba(255,255,255,0.85)',
-                    }}
-                  >
-                    1km 당 1포인트 자동적립
-                  </Text>
-                </View>
-              </View>
+              <PointCard
+                pointTotal={pointTotal}
+                isExpanded={isPointCardExpanded}
+                onToggle={() => setIsPointCardExpanded((v) => !v)}
+                breakdown={pointBreakdown}
+              />
 
               {/* 리스트 헤더 + 히스토리 카드들 */}
               <View style={{ gap: 20 }}>
@@ -1217,25 +1256,25 @@ export default function StoreScreen() {
                       color: colors.primary[50],
                     }}
                   >
-                    {history.length}건
+                    {historyTotalCount}건
                   </Text>
                 </View>
 
                 {/* 히스토리 카드들 */}
                 <View style={{ gap: 12 }}>
-                  {history.slice(0, visibleHistoryCount).map((item) => (
-                    <PointHistoryCard key={item.id} item={item} />
+                  {pointHistories.slice(0, visibleHistoryCount).map((item, index) => (
+                    <PointHistoryCard key={`${item.date}-${index}`} item={item} />
                   ))}
                 </View>
 
                 {/* 더보기 */}
-                {visibleHistoryCount < history.length && (
+                {visibleHistoryCount < pointHistories.length && (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="more"
                     style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     onPress={() => {
-                      setVisibleHistoryCount((prev) => Math.min(prev + 4, history.length));
+                      setVisibleHistoryCount((prev) => Math.min(prev + 4, pointHistories.length));
                     }}
                   >
                     <Text
@@ -1255,47 +1294,12 @@ export default function StoreScreen() {
           ) : selectedTab === 'coupon' ? (
             <View style={{ paddingHorizontal: 20, paddingTop: 18, gap: 30 }}>
               {/* 포인트 카드 */}
-              <View
-                style={{
-                  width: '100%',
-                  borderRadius: borderRadius.lg,
-                  backgroundColor: colors.primary[50],
-                  paddingHorizontal: 22,
-                  paddingVertical: 20,
-                  gap: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body2Semibold,
-                    color: colors.coolNeutral[10],
-                    opacity: 0.95,
-                  }}
-                >
-                  나의 포인트
-                </Text>
-                <View style={{ gap: 4 }}>
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.h1Bold,
-                      color: colors.coolNeutral[10],
-                    }}
-                  >
-                    {formatPointTotal(pointTotal)}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.body3Regular,
-                      color: 'rgba(255,255,255,0.85)',
-                    }}
-                  >
-                    1km 당 1포인트 자동적립
-                  </Text>
-                </View>
-              </View>
+              <PointCard
+                pointTotal={pointTotal}
+                isExpanded={isPointCardExpanded}
+                onToggle={() => setIsPointCardExpanded((v) => !v)}
+                breakdown={pointBreakdown}
+              />
 
               {/* 보유쿠폰 리스트 */}
               <View style={{ gap: 20 }}>
@@ -1317,13 +1321,13 @@ export default function StoreScreen() {
                       color: colors.primary[50],
                     }}
                   >
-                    {MY_COUPONS.length}개
+                    {couponTotalCount}개
                   </Text>
                 </View>
 
                 {/* 쿠폰 카드들 */}
                 <View style={{ gap: 12 }}>
-                  {MY_COUPONS.slice(0, visibleCouponCount).map((coupon) => (
+                  {memberCoupons.slice(0, visibleCouponCount).map((coupon) => (
                     <CouponCard
                       key={coupon.id}
                       coupon={coupon}
@@ -1333,13 +1337,13 @@ export default function StoreScreen() {
                 </View>
 
                 {/* 더보기 */}
-                {visibleCouponCount < MY_COUPONS.length && (
+                {visibleCouponCount < memberCoupons.length && (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="more-coupons"
                     style={{ alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     onPress={() => {
-                      setVisibleCouponCount((prev) => Math.min(prev + 4, MY_COUPONS.length));
+                      setVisibleCouponCount((prev) => Math.min(prev + 4, memberCoupons.length));
                     }}
                   >
                     <Text

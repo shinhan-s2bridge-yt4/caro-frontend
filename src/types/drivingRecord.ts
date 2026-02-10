@@ -15,6 +15,7 @@ export type DrivingRecordsResponse = {
   records: DrivingRecord[];
   nextCursor: number | null;
   hasNext: boolean;
+  monthlyCount: number;
 };
 
 export type DrivingRecordsRequest = {
@@ -26,7 +27,6 @@ export type DrivingRecordsRequest = {
 export type DrivingSummary = {
   totalDistanceKm: number;
   totalEarnedPoints: number;
-  totalDrivingCount: number;
 };
 
 export type CreateDrivingRecordRequest = {
@@ -40,5 +40,5 @@ export type CreateDrivingRecordRequest = {
 
 export type CreateDrivingRecordResponse = {
   id: number;
-  earnedPoints: number;
+  pendingPoints: number;
 };

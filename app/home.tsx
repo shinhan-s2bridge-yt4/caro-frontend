@@ -1,8 +1,9 @@
-import { Pressable, View, Text, Modal, ActivityIndicator, ScrollView, Switch } from 'react-native';
+import { Pressable, View, Text, Modal, ActivityIndicator, ScrollView, Switch, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { ToggleButton, type ToggleOption, type ToggleValue } from '@/components/common/Button/ToggleButton';
+import { MainButton } from '@/components/common/Button/MainButton';
 import { Toast } from '@/components/common/Toast/Toast';
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +16,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import { useAuthStore } from '@/stores/authStore';
 import { createDrivingRecord } from '@/services/drivingRecordService';
+import { fetchPointHistory, fetchPointEstimate, fetchPendingPoints, claimPoints, checkAttendance, fetchAttendanceStatus, type PointHistory } from '@/services/rewardService';
 
 import BCarIcon from '../assets/icons/bcar.svg';
 import GCarIcon from '../assets/icons/gcar.svg';
@@ -30,6 +32,30 @@ import InfoIcon from '../assets/icons/info.svg';
 import BCheckIcon from '../assets/icons/bcheck.svg';
 import GCheckIcon from '../assets/icons/gcheck.svg';
 import WXIcon from '../assets/icons/w_x.svg';
+import CalendarIcon from '../assets/icons/calendar.svg';
+import LogoIcon from '../assets/icons/logo.svg';
+import YCoinIcon from '../assets/icons/ycoin.svg';
+import YPointIcon from '../assets/icons/ypoint.svg';
+import RCarIcon from '../assets/icons/rcar.svg';
+import RCalIcon from '../assets/icons/rcal.svg';
+import RCouponIcon from '../assets/icons/rcoupon.svg';
+import Day1Icon from '../assets/icons/Day1.svg';
+import Day2Icon from '../assets/icons/Day2.svg';
+import Day3Icon from '../assets/icons/Day3.svg';
+import Day4Icon from '../assets/icons/Day4.svg';
+import Day5Icon from '../assets/icons/Day5.svg';
+import Day6Icon from '../assets/icons/Day6.svg';
+import Day7Icon from '../assets/icons/Day7.svg';
+
+// 포인트 포맷 헬퍼
+function formatDateOnly(isoDate: string): string {
+  return isoDate.slice(0, 10);
+}
+
+function formatPointAmount(amount: number) {
+  const abs = Math.abs(amount).toLocaleString('ko-KR');
+  return `${amount >= 0 ? '+ ' : '- '}${abs} P`;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -44,6 +70,12 @@ export default function HomeScreen() {
   const [isCarSelectModalVisible, setIsCarSelectModalVisible] = useState(false);
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [isBtModalVisible, setIsBtModalVisible] = useState(false);
+  const [pointHistories, setPointHistories] = useState<PointHistory[]>([]);
+  const [attendanceStreak, setAttendanceStreak] = useState(0);
+  const [isAttendanceChecked, setIsAttendanceChecked] = useState(false);
+  const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
+  const [attendancePoints, setAttendancePoints] = useState(0);
+  const [attendedDays, setAttendedDays] = useState<Set<number>>(new Set());
 
   // 블루투스 연결 관리
   const {
@@ -84,6 +116,37 @@ export default function HomeScreen() {
       setSelectedCarId(cars[0].id);
     }
   }, [cars, selectedCarId]);
+
+  // 포인트 이력 및 출석 현황 조회
+  useEffect(() => {
+    if (topToggle === 1) {
+      fetchPointHistory()
+        .then((data) => {
+          setPointHistories(data.histories);
+        })
+        .catch((err) => {
+          console.warn('포인트 이력 조회 실패:', err);
+          setPointHistories([]);
+        });
+
+      fetchAttendanceStatus()
+        .then((data) => {
+          setAttendanceStreak(data.currentStreak);
+          setIsAttendanceChecked(data.isAttendedToday);
+          setAttendedDays(new Set(data.attendanceRecords.map((r) => r.dayOrder)));
+        })
+        .catch((err) => {
+          console.warn('출석 현황 조회 실패:', err);
+        });
+
+      fetchPendingPoints()
+        .then((data) => setPendingPoints(data.totalPendingPoints))
+        .catch((err) => {
+          console.warn('미수령 포인트 조회 실패:', err);
+          setPendingPoints(0);
+        });
+    }
+  }, [topToggle]);
 
   // BLE 디바이스 페어링 핸들러
   const handlePairDevice = (device: BleDevice) => {
@@ -139,16 +202,39 @@ export default function HomeScreen() {
     return colors.coolNeutral[40];
   }, [drivingStatus, isMonitoring, activeDeviceId]);
 
-  // 예상 적립 포인트 계산 (1km당 약 1.5P)
-  const estimatedPoints = useMemo(() => {
-    return Math.floor(totalDistanceKm * 1.5);
-  }, [totalDistanceKm]);
+  // 예상 적립 포인트 (API 기반)
+  const [estimatedPoints, setEstimatedPoints] = useState(0);
+
+  // 미수령 운행 포인트
+  const [pendingPoints, setPendingPoints] = useState(0);
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  // 포인트 받기
+  const handleClaimPoints = useCallback(async () => {
+    if (isClaiming || pendingPoints <= 0) return;
+    setIsClaiming(true);
+    try {
+      await claimPoints();
+      // 미수령 포인트 새로고침
+      const data = await fetchPendingPoints();
+      setPendingPoints(data.totalPendingPoints);
+    } catch (err) {
+      console.warn('포인트 수령 실패:', err);
+    } finally {
+      setIsClaiming(false);
+    }
+  }, [isClaiming, pendingPoints]);
 
   // 수동 운행 시작/중지 핸들러
   const handleDrivingToggle = async () => {
     if (drivingStatus === 'driving') {
-      // 운행 중이면 종료 확인 팝업 표시
+      // 운행 중이면 종료 확인 팝업 표시 + 예상 포인트 조회
       setIsStopModalVisible(true);
+      if (totalDistanceKm > 0) {
+        fetchPointEstimate(Math.round(totalDistanceKm * 100) / 100)
+          .then((res) => setEstimatedPoints(res.estimatedPoints))
+          .catch(() => setEstimatedPoints(0));
+      }
     } else {
       // GPS 권한이 없으면 요청
       if (!hasPermission) {
@@ -259,7 +345,7 @@ export default function HomeScreen() {
   const toggleOptions = useMemo((): [ToggleOption, ToggleOption] => {
     return [
       { label: '운행기록', icon: BCarIcon, activeIcon: BCarIcon },
-      { label: '포인트', icon: BCoinIcon, activeIcon: BCoinIcon },
+      { label: '포인트', icon: BCoinIcon, activeIcon: YPointIcon },
     ];
   }, []);
 
@@ -279,8 +365,8 @@ export default function HomeScreen() {
   const userName = useProfileStore((s) => s.name) || '사용자';
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background.default }}>
-    <View style={{ flex: 1, backgroundColor: colors.background.default }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: topToggle === 1 ? colors.coolNeutral[10] : colors.background.default }}>
+    <View style={{ flex: 1, backgroundColor: topToggle === 1 ? colors.coolNeutral[10] : colors.background.default }}>
       {/* 드롭다운 열려있을 때 배경 터치로 닫기 */}
       {isCarSelectModalVisible && (
         <Pressable
@@ -303,7 +389,7 @@ export default function HomeScreen() {
           width: '100%',
         }}
       >
-        <View style={{ gap: 20 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View
             style={{
@@ -315,20 +401,14 @@ export default function HomeScreen() {
               paddingVertical: 12,
             }}
           >
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.h3Bold,
-                color: colors.primary[50],
-              }}
-            >
-              CARO
-            </Text>
+            <LogoIcon height={24} width={85} />
             <ToggleButton
               options={toggleOptions}
               value={topToggle}
               onChange={(v) => setTopToggle(v)}
               height={34}
+              containerStyle={topToggle === 1 ? { backgroundColor: '#FEDE51' } : undefined}
+              activeTextColor={topToggle === 1 ? '#FEDE51' : undefined}
             />
           </View>
 
@@ -356,6 +436,7 @@ export default function HomeScreen() {
               </Text>
             </View>
 
+            {topToggle === 0 && (
             <View style={{ gap: 24 }}>
               {/* Today Drive Card */}
               <View
@@ -860,8 +941,275 @@ export default function HomeScreen() {
                 <RightIcon width={24} height={24} />
               </Pressable>
             </View>
+            )}
+
+            {/* 포인트 콘텐츠 */}
+            {topToggle === 1 && (
+            <View style={{ gap: 24 }}>
+              {/* 포인트 잔액 */}
+              <View style={{ alignItems: 'center', gap: 20, paddingVertical: 8 }}>
+                <View
+                  style={{
+                    width: 200,
+                    height: 200,
+                    borderRadius: 100,
+                    borderWidth: 8,
+                    borderColor: '#FEDE51',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <YCoinIcon height={169} />
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.h1Bold,
+                      color: colors.coolNeutral[90],
+                    }}
+                  >
+                    {pendingPoints.toLocaleString('ko-KR')}
+                  </Text>
+                </View>
+                <MainButton
+                  label={isClaiming ? '수령 중...' : '포인트 받기'}
+                  alwaysPrimary
+                  disabled={pendingPoints <= 0 || isClaiming}
+                  onPress={handleClaimPoints}
+                  containerStyle={{ width: 130, backgroundColor: pendingPoints > 0 ? '#FEB802' : colors.coolNeutral[30] }}
+                />
+              </View>
+
+              {/* 구분선 */}
+              <View style={{ height: 28, backgroundColor: colors.coolNeutral[20], marginHorizontal: -20 }} />
+
+              {/* 출석체크 */}
+              <View style={{ gap: 20, marginBottom: 8 }}>
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.h3Bold,
+                    color: colors.coolNeutral[80],
+                  }}
+                >
+                  출석체크
+                </Text>
+                <View
+                  style={{
+                    backgroundColor: colors.background.default,
+                    borderRadius: 16,
+                    padding: 20,
+                    gap: 16,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Semibold,
+                        color: colors.coolNeutral[40],
+                      }}
+                    >
+                      연속 {attendanceStreak > 0 ? attendanceStreak : 0}일째 출석중 !
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="attendance-check"
+                      disabled={isAttendanceChecked}
+                      onPress={async () => {
+                        try {
+                          const result = await checkAttendance();
+                          setAttendanceStreak(result.streak);
+                          setAttendancePoints(result.points);
+                          setIsAttendanceChecked(true);
+                          setIsAttendanceModalVisible(true);
+                          // 출석 현황 새로고침
+                          fetchAttendanceStatus()
+                            .then((data) => {
+                              setAttendedDays(new Set(data.attendanceRecords.map((r) => r.dayOrder)));
+                            })
+                            .catch(() => {});
+                          // 포인트 이력 새로고침
+                          fetchPointHistory()
+                            .then((data) => setPointHistories(data.histories))
+                            .catch(() => {});
+                        } catch (err) {
+                          console.warn('출석체크 실패:', err);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: isAttendanceChecked ? colors.coolNeutral[30] : colors.primary[50],
+                        borderRadius: 7,
+                        paddingHorizontal: 10.6,
+                        paddingVertical: 3.52,
+                        width: 88,
+                        height: 32,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body3Semibold,
+                          color: colors.coolNeutral[10],
+                        }}
+                      >
+                        {isAttendanceChecked ? '완료' : '출석체크'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    {([
+                      { day: 1, Icon: Day1Icon },
+                      { day: 2, Icon: Day2Icon },
+                      { day: 3, Icon: Day3Icon },
+                      { day: 4, Icon: Day4Icon },
+                      { day: 5, Icon: Day5Icon },
+                      { day: 6, Icon: Day6Icon },
+                      { day: 7, Icon: Day7Icon },
+                    ]).map(({ day, Icon }) => {
+                      const isChecked = attendedDays.has(day);
+                      return (
+                      <View key={day} style={{ alignItems: 'center', gap: 4 }}>
+                        {isChecked ? <BCheckIcon width={36} height={36} /> : <Icon width={36} height={36} />}
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.captionMedium,
+                            color: isChecked ? colors.coolNeutral[30] : colors.coolNeutral[50],
+                          }}
+                        >
+                          Day {day}
+                        </Text>
+                      </View>
+                      );
+                    })}
+                  </View>
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.captionMedium,
+                      color: colors.primary[50],
+                      textAlign: 'center',
+                    }}
+                  >
+                    오늘 출석하고 랜덤포인트 받아가세요!
+                  </Text>
+                </View>
+              </View>
+
+              {/* 구분선 */}
+              <View style={{ height: 28, backgroundColor: colors.coolNeutral[20], marginHorizontal: -20 }} />
+
+              {/* 최근 포인트 */}
+              <View style={{ gap: 16, paddingVertical: 24, paddingHorizontal: 20, marginHorizontal: -20, marginTop: -24 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="recent-points"
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                  onPress={() => router.push({ pathname: '/store', params: { tab: 'point' } })}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.h3Bold,
+                      color: colors.coolNeutral[90],
+                    }}
+                  >
+                    최근 포인트
+                  </Text>
+                  <RightIcon width={20} height={20} />
+                </Pressable>
+                <View style={{ gap: 20 }}>
+                  {pointHistories.slice(0, 5).map((item, index) => {
+                    const isEarn = item.pointChange >= 0;
+                    const amountColor = isEarn ? colors.primary[50] : colors.red[50];
+                    const displayDate = item.type === 'DRIVING' && item.drivingDetail
+                      ? formatDateOnly(item.drivingDetail.startDateTime)
+                      : formatDateOnly(item.date);
+                    const distanceKm = item.type === 'DRIVING' && item.drivingDetail
+                      ? item.drivingDetail.distanceKm
+                      : null;
+                    const TypeIcon = item.type === 'DRIVING'
+                      ? RCarIcon
+                      : item.type === 'ATTENDANCE'
+                        ? RCalIcon
+                        : RCouponIcon;
+
+                    return (
+                      <View key={`${item.date}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 12,
+                              backgroundColor: colors.coolNeutral[20],
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <TypeIcon width={24} height={24} />
+                          </View>
+                          <View style={{ gap: 2, flex: 1 }}>
+                            <Text
+                              style={{
+                                fontFamily: typography.fontFamily.pretendard,
+                                ...typography.styles.body2Bold,
+                                color: colors.coolNeutral[80],
+                              }}
+                              numberOfLines={1}
+                            >
+                              {item.description}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <CalendarIcon width={14} height={14} />
+                                <Text
+                                  style={{
+                                    fontFamily: typography.fontFamily.pretendard,
+                                    ...typography.styles.captionMedium,
+                                    color: colors.coolNeutral[40],
+                                  }}
+                                >
+                                  {displayDate}
+                                </Text>
+                              </View>
+                              {distanceKm != null && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                  <GCarIcon width={14} height={14} />
+                                  <Text
+                                    style={{
+                                      fontFamily: typography.fontFamily.pretendard,
+                                      ...typography.styles.captionMedium,
+                                      color: colors.coolNeutral[40],
+                                    }}
+                                  >
+                                    {distanceKm} km
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body1Bold,
+                            color: amountColor,
+                          }}
+                        >
+                          {formatPointAmount(item.pointChange)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+            )}
           </View>
-        </View>
+        </ScrollView>
       </View>
 
       <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
@@ -883,6 +1231,123 @@ export default function HomeScreen() {
           }}
         />
       </View>
+
+      {/* 출석체크 보상 모달 */}
+      <Modal
+        visible={isAttendanceModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAttendanceModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 32,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              backgroundColor: colors.coolNeutral[10],
+              borderRadius: 20,
+              paddingHorizontal: 24,
+              paddingTop: 20,
+              paddingBottom: 24,
+              alignItems: 'center',
+            }}
+          >
+            {/* 닫기 버튼 */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="close-attendance-modal"
+              onPress={() => setIsAttendanceModalVisible(false)}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              <XIcon width={24} height={24} />
+            </Pressable>
+
+            {/* 코인 이미지 */}
+            <Image
+              source={require('../assets/icons/coin.gif')}
+              style={{ width: 146, height: 146 }}
+            />
+
+            {/* 보상 텍스트 */}
+            <View style={{ alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.h2Bold,
+                  color: colors.coolNeutral[80],
+                  textAlign: 'center',
+                }}
+              >
+                출석체크 보상{'\n'}{attendancePoints}P 당첨!
+              </Text>
+            </View>
+
+            {/* 연속 출석 정보 */}
+            <View
+              style={{
+                width: '100%',
+                backgroundColor: colors.background.default,
+                borderRadius: 12,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                alignItems: 'center',
+                gap: 4,
+                marginBottom: 20,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body3Semibold,
+                  color: colors.primary[50],
+                }}
+              >
+                {attendanceStreak}일 연속 출석중!
+              </Text>
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body3Regular,
+                  color: colors.coolNeutral[40],
+                }}
+              >
+                너무 잘하고 있어요. 내일 또 만나요
+              </Text>
+            </View>
+
+            {/* 출석 완료 버튼 */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="attendance-complete"
+              onPress={() => setIsAttendanceModalVisible(false)}
+              style={{
+                width: '100%',
+                backgroundColor: colors.primary[50],
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body1Bold,
+                  color: colors.coolNeutral[10],
+                }}
+              >
+                확인
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* 운행 종료 확인 모달 */}
       <Modal

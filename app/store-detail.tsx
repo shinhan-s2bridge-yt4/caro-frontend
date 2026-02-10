@@ -1,42 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
+import { Toast } from '@/components/common/Toast';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import { useAuthStore } from '@/stores/authStore';
+import { exchangeCoupon } from '@/services/rewardService';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import PointIcon from '../assets/icons/point.svg';
 import UpIcon from '../assets/icons/UpIcon.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
 import Coffee1Icon from '../assets/icons/coffee1.svg';
-import Coffee2Icon from '../assets/icons/coffee2.svg';
-import Coffee3Icon from '../assets/icons/coffee3.svg';
-import BugerIcon from '../assets/icons/buger.svg';
 import OneIcon from '../assets/icons/one.svg';
 import TwoIcon from '../assets/icons/two.svg';
 import ThreeIcon from '../assets/icons/three.svg';
 import FourIcon from '../assets/icons/four.svg';
 
-type ImageType = 'coffee1' | 'coffee2' | 'coffee3' | 'buger';
-
-// 상품 이미지 컴포넌트
-function ProductImage({ type, size = 200 }: { type: ImageType; size?: number | string }) {
-  switch (type) {
-    case 'coffee1':
-      return <Coffee1Icon width={size} height={size} />;
-    case 'coffee2':
-      return <Coffee2Icon width={size} height={size} />;
-    case 'coffee3':
-      return <Coffee3Icon width={size} height={size} />;
-    case 'buger':
-      return <BugerIcon width={size} height={size} />;
-    default:
-      return <Coffee1Icon width={size} height={size} />;
-  }
-}
+const IMAGE_BASE_URL = 'https://api.caro.today';
 
 // 아코디언 섹션 컴포넌트
 function AccordionSection({
@@ -147,7 +130,7 @@ export default function StoreDetailScreen() {
   const productBrand = (params.brand as string) || '스타벅스';
   const productName = (params.name as string) || '[스타벅스] 아이스 아메리카노 Tall 모바일 교환권';
   const productPrice = Number(params.price) || 11000;
-  const productImage = (params.imageType as ImageType) || 'coffee1';
+  const productImageUrl = params.imageUrl as string | undefined;
 
   // API에서 포인트 정보 가져오기
   useEffect(() => {
@@ -162,8 +145,158 @@ export default function StoreDetailScreen() {
   // 포인트 충분 여부
   const hasEnoughPoints = userPoint >= productPrice;
 
+  // 교환 확인 팝업
+  const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isExchanging, setIsExchanging] = useState(false);
+
+  const handleExchange = async () => {
+    setIsExchanging(true);
+    try {
+      await exchangeCoupon(Number(productId));
+      setIsExchangeModalOpen(false);
+      setIsToastVisible(true);
+      // 포인트 갱신
+      if (accessToken) {
+        fetchSummary({ accessToken });
+      }
+    } catch (err) {
+      setIsExchangeModalOpen(false);
+      console.warn('쿠폰 교환 실패:', err);
+    } finally {
+      setIsExchanging(false);
+    }
+  };
+
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.coolNeutral[10]  }}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
+      {/* 교환 확인 팝업 */}
+      {isExchangeModalOpen && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {/* 배경 터치 */}
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            onPress={() => setIsExchangeModalOpen(false)}
+          />
+
+          {/* 팝업 카드 */}
+          <View
+            style={{
+              backgroundColor: colors.coolNeutral[10],
+              borderRadius: 20,
+              paddingTop: 32,
+              paddingBottom: 20,
+              paddingHorizontal: 20,
+              width: '85%',
+              maxWidth: 340,
+              alignItems: 'center',
+              gap: 20,
+            }}
+          >
+            {/* 포인트 + 제목 + 안내 문구 묶음 */}
+            <View style={{ alignItems: 'center', gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <PointIcon width={20} height={20} />
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Bold,
+                    color: colors.coolNeutral[90],
+                  }}
+                >
+                  {productPrice.toLocaleString('ko-KR')} P 를
+                </Text>
+              </View>
+
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body2Bold,
+                  color: colors.coolNeutral[80],
+                }}
+              >
+                쿠폰으로 교환하시겠어요?
+              </Text>
+
+              {/* 안내 문구 */}
+              <Text
+                style={{
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body3Medium,
+                  color: colors.coolNeutral[40],
+                  textAlign: 'center',
+                  lineHeight: 22,
+                }}
+              >
+                {productPrice.toLocaleString('ko-KR')}P가 차감되고 쿠폰이 바로 지급돼요.{'\n'}
+                교환 후에는 취소가 불가능해요.
+              </Text>
+            </View>
+
+            {/* 버튼 영역 */}
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              {/* 취소 버튼 */}
+              <Pressable
+                onPress={() => setIsExchangeModalOpen(false)}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: borderRadius.md,
+                  backgroundColor: colors.coolNeutral[20],
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Semibold,
+                    color: colors.coolNeutral[50],
+                  }}
+                >
+                  취소할래요
+                </Text>
+              </Pressable>
+
+              {/* 교환 버튼 */}
+              <Pressable
+                onPress={handleExchange}
+                disabled={isExchanging}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: borderRadius.md,
+                  backgroundColor: isExchanging ? colors.coolNeutral[30] : colors.primary[50],
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body2Semibold,
+                    color: colors.coolNeutral[10],
+                  }}
+                >
+                  {isExchanging ? '교환 중...' : '교환하기'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100, gap: 28 }}>
         {/* 헤더 */}
         <View
@@ -212,7 +345,15 @@ export default function StoreDetailScreen() {
               justifyContent: 'center',
             }}
           >
-            <ProductImage type={productImage} size={257} />
+            {productImageUrl ? (
+              <Image
+                source={{ uri: `${IMAGE_BASE_URL}${productImageUrl}` }}
+                style={{ width: 257, height: 257 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Coffee1Icon width={257} height={257} />
+            )}
           </View>
 
           {/* 상품 정보 + 버튼 + 아코디언 영역 */}
@@ -270,10 +411,7 @@ export default function StoreDetailScreen() {
               justifyContent: 'center',
               alignItems: 'center',
             }}
-            onPress={() => {
-              // TODO: 교환 로직 구현
-              console.log('교환하기');
-            }}
+            onPress={() => setIsExchangeModalOpen(true)}
           >
             <Text
               style={{
@@ -324,6 +462,17 @@ export default function StoreDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Toast
+        message="교환 완료! 쿠폰이 저장됐어요."
+        visible={isToastVisible}
+        actionLabel="보러가기"
+        onAction={() => {
+          setIsToastVisible(false);
+          router.push({ pathname: '/store', params: { tab: 'coupon' } });
+        }}
+        onDismiss={() => setIsToastVisible(false)}
+      />
 
       <NavigationBar
         active="store"

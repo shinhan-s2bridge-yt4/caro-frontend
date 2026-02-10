@@ -2,6 +2,26 @@ import apiClient from '@/services/apiClient';
 
 import type { ProfileResponse, ProfileData } from '@/types/profile';
 
+// 마이페이지 대시보드
+export type DashboardData = {
+  totalDistanceKm: number;
+  availablePoints: number;
+  totalDrivingRecordCount: number;
+};
+
+type DashboardResponse = {
+  code: string;
+  message: string;
+  data: DashboardData;
+};
+
+export async function fetchDashboard(): Promise<DashboardData> {
+  const { data } = await apiClient.get<DashboardResponse>(
+    '/api/v1/members/dashboard',
+  );
+  return data.data;
+}
+
 export async function fetchProfile(accessToken: string): Promise<ProfileData> {
   const { data } = await apiClient.get<ProfileResponse>(
     '/api/v1/profiles',

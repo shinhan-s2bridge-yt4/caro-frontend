@@ -13,6 +13,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.90.20",
     "axios": "^1.13.4",
+    "bluetooth-audio": "file:./modules/bluetooth-audio",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
@@ -34,8 +35,8 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "^15.15.1",
     "react-native-web": "^0.21.2",
-    "zustand": "^5.0.11",
-    "bluetooth-audio": "file:./modules/bluetooth-audio"
+    "react-native-webview": "^13.16.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
