@@ -1,4 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Pressable, Text } from 'react-native';
 import { typography, colors, borderRadius } from '@/theme';
 
@@ -8,6 +8,7 @@ interface MainButtonProps {
   alwaysPrimary?: boolean;
   onPress?: () => void;
   containerStyle?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 }
 
 export const MainButton = ({
@@ -16,6 +17,7 @@ export const MainButton = ({
   alwaysPrimary = false,
   onPress,
   containerStyle,
+  labelStyle,
 }: MainButtonProps) => {
   const backgroundColor = alwaysPrimary
     ? colors.primary[50]
@@ -48,11 +50,14 @@ export const MainButton = ({
       ]}
     >
       <Text
-        style={{
-          fontFamily: typography.fontFamily.pretendard,
-          ...typography.styles.body2Bold,
-          color: textColor,
-        }}
+        style={[
+          {
+            fontFamily: typography.fontFamily.pretendard,
+            ...typography.styles.h3Bold,
+            color: textColor,
+          },
+          labelStyle,
+        ]}
       >
         {label}
       </Text>

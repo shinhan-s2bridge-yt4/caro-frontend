@@ -22,6 +22,7 @@ const SCREEN_MAX_WIDTH = 375;
 
 export default function VehicleNumberScreen() {
   const router = useRouter();
+  const userName = useSignupDraftStore((s) => s.account?.name ?? '');
   const updateVehicle = useSignupDraftStore((s) => s.updateVehicle);
   const vehicle = useSignupDraftStore((s) => s.vehicle);
 
@@ -91,17 +92,17 @@ export default function VehicleNumberScreen() {
                   color: colors.coolNeutral[80],
                 }}
               >
-                차량 번호를 입력해주세요
+              {userName}님의{'\n'}차 번호를 입력해주세요
               </Text>
               <Text
                 style={{
                   marginTop: 8,
                   fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Regular,
+                  ...typography.styles.body2Regular,
                   color: colors.coolNeutral[40],
                 }}
               >
-                차량 번호를 입력해주세요.
+                차량번호를 입력하면 차량 정보를 불러올 수 있어요
               </Text>
             </View>
 

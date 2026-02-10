@@ -4,12 +4,12 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 
 import { colors, typography, borderRadius } from '@/theme';
-import ProgressBar from '@/components/common/Bar/ProgressBar';
 import { MainButton } from '@/components/common/Button/MainButton';
 import { formatNumberWithComma } from '@/utils/number';
 import { signUpWithEmail } from '@/services/authService';
 import { registerMyCar } from '@/services/vehicleService';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 
 import ArrowLeftIcon from '../../assets/icons/arrow-left.svg';
@@ -28,6 +28,8 @@ export default function VehicleCompleteScreen() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const mode = useSignupDraftStore((s) => s.mode);
   const account = useSignupDraftStore((s) => s.account);
   const vehicle = useSignupDraftStore((s) => s.vehicle);
   const clearDraft = useSignupDraftStore((s) => s.clearDraft);
@@ -52,11 +54,7 @@ export default function VehicleCompleteScreen() {
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    if (!account) {
-      Alert.alert('회원가입 정보가 없어요', '처음 화면에서 다시 진행해주세요.');
-      router.replace('/(auth)/signup');
-      return;
-    }
+    // 차량 정보 검증 (공통)
     if (
       vehicle.modelId == null ||
       !vehicle.registrationNumber ||
@@ -64,6 +62,50 @@ export default function VehicleCompleteScreen() {
     ) {
       Alert.alert('차량 정보가 부족해요', '차량 정보를 다시 입력해주세요.');
       router.replace('/(auth)/vehicle-brand');
+      return;
+    }
+
+    // 마이페이지에서 차량 추가 모드
+    if (mode === 'add-vehicle') {
+      if (!accessToken) {
+        Alert.alert('로그인이 필요해요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+
+        await registerMyCar({
+          accessToken,
+          payload: {
+            modelId: vehicle.modelId,
+            registrationNumber: vehicle.registrationNumber,
+            mileage: vehicle.mileage,
+          },
+        });
+
+        clearDraft();
+        Alert.alert('차량 추가 완료', '새 차량이 추가되었습니다.');
+        router.replace('/user');
+      } catch (e: unknown) {
+        const message =
+          axios.isAxiosError(e) && e.response?.data?.message
+            ? String(e.response.data.message)
+            : e instanceof Error
+              ? e.message
+              : '차량 추가 중 오류가 발생했습니다.';
+        Alert.alert('차량 추가 실패', message);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // 회원가입 모드 (기존 로직)
+    if (!account) {
+      Alert.alert('회원가입 정보가 없어요', '처음 화면에서 다시 진행해주세요.');
+      router.replace('/(auth)/signup');
       return;
     }
 
@@ -76,6 +118,12 @@ export default function VehicleCompleteScreen() {
         name: account.name,
       });
       setAuth(auth);
+
+      // 회원가입 폼에서 입력한 이름/이메일을 프로필에 즉시 반영
+      useProfileStore.getState().setProfile({
+        name: account.name,
+        email: account.email,
+      });
 
       await registerMyCar({
         accessToken: auth.accessToken,
@@ -120,31 +168,43 @@ export default function VehicleCompleteScreen() {
             </Pressable>
           </View>
 
-          {/* 진행바 */}
-          <View style={{ marginTop: 10, width: '100%', alignItems: 'center' }}>
-            <ProgressBar total={5} activeIndex={4} />
-          </View>
+          {/* 진행바 자리 여백 */}
+          <View style={{ marginTop: 56 }} />
 
-          {/* 중앙 콘텐츠 */}
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          {/* 타이틀 */}
+          <View style={{ paddingHorizontal: 20 }}>
             <Text
               style={{
-                textAlign: 'center',
                 fontFamily: typography.fontFamily.pretendard,
                 ...typography.styles.h2Semibold,
                 color: colors.coolNeutral[80],
               }}
             >
-              입력이 모두{'\n'}완료 되었습니다!
+              준비 완료!{'\n'}이제 카로를 시작해볼까요?
+            </Text>
+          </View>
+
+          {/* 등록 된 차량 */}
+          <View style={{ marginTop: 32, paddingHorizontal: 20 }}>
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.body3Medium,
+                color: colors.coolNeutral[80],
+              }}
+            >
+              등록 된 차량
             </Text>
 
             <View
               style={{
-                marginTop: 45,
-                width: 334,
+                marginTop: 12,
+                width: '100%',
                 borderRadius: borderRadius.lg,
                 paddingVertical: 20,
                 paddingHorizontal: 20,
+                borderWidth: 1,
+                borderColor: colors.primary[50],
                 backgroundColor: colors.background.default,
               }}
             >
@@ -158,39 +218,50 @@ export default function VehicleCompleteScreen() {
                 {viewTitle || '차량 정보'}
               </Text>
 
-              <View style={{ marginTop: 8.5, gap: 8 }}>
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body3Semibold,
-                    color: colors.coolNeutral[60],
-                  }}
-                >
-                  • 연식: {viewYear ? `${viewYear}년` : '-'}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body3Semibold,
-                    color: colors.coolNeutral[60],
-                  }}
-                >
-                  • 주행거리: {viewMileageText ? `${viewMileageText}km` : '-'}
-                </Text>
-              </View>
+              <Text
+                style={{
+                  marginTop: 8,
+                  fontFamily: typography.fontFamily.pretendard,
+                  ...typography.styles.body3Medium,
+                  color: colors.coolNeutral[40],
+                }}
+              >
+                {viewYear ? `${viewYear}년식` : '-'}  •  {viewMileageText ? `${viewMileageText}km` : '-'}
+              </Text>
             </View>
+
+            <Text
+              style={{
+                marginTop: 12,
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.captionRegular,
+                color: colors.coolNeutral[40],
+              }}
+            >
+              언제든 차량을 추가하거나 수정할 수 있어요
+            </Text>
           </View>
+
+          {/* 하단 여백 */}
+          <View style={{ flex: 1 }} />
 
           {/* 하단 버튼 */}
           <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <MainButton
-              label={isSubmitting ? '처리 중...' : '시작하기'}
+              label={isSubmitting ? '처리 중...' : mode === 'add-vehicle' ? '등록하기' : '카로 시작하기'}
               alwaysPrimary
               disabled={isSubmitting}
               onPress={handleSubmit}
             />
             <Pressable
-              onPress={() => router.replace('/(auth)/vehicle-brand')}
+              onPress={() => {
+                if (mode === 'add-vehicle') {
+                  clearDraft();
+                  router.replace('/user');
+                } else {
+                  router.replace('/(auth)/vehicle-brand');
+                }
+              }}
               style={{
                 marginTop: 12,
                 width: 335,
@@ -208,7 +279,7 @@ export default function VehicleCompleteScreen() {
                   color: colors.coolNeutral[50],
                 }}
               >
-                수정할래요
+                {mode === 'add-vehicle' ? '취소' : '수정할래요'}
               </Text>
             </Pressable>
           </View>

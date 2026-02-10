@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
+import LogoIcon from '../assets/icons/logo.svg';
 
 export default function Splash() {
   const router = useRouter();
@@ -21,28 +22,19 @@ export default function Splash() {
         backgroundColor: colors.coolNeutral[10],
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 24,
+        gap: 30,
       }}
     >
-      <Text
-        style={{
-          fontFamily: typography.fontFamily.pretendard,
-          fontSize: 60,
-          fontWeight: '900',
-          color: colors.primary[50],
-        }}
-      >
-        CARO
-      </Text>
+      <LogoIcon />
       <Text
         style={{
           fontFamily: typography.fontFamily.pretendard,
           ...typography.styles.body1Medium,
-          color: colors.coolNeutral[40],
+          color: colors.primary[50],
           textAlign: 'center',
         }}
       >
-        스마트한 차량 관리{'\n'}은행 기록부터 지출 관리까지
+        타는 순간부터 쌓이는,{'\n'}나만의 운행 리워드 서비스
       </Text>
     </View>
   );

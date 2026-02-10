@@ -46,14 +46,15 @@ const TextInput = ({
   const getBorderColor = () => {
     if (disabled) return colors.coolNeutral[30];
     if (hasError) return colors.red[30];
-    if (isCompleted) return colors.primary[50];
-    if (isFocused) return colors.primary[50]; // 포커스일 때만
+    if (isFocused) return colors.primary[50];
+    if (hasValue) return colors.coolNeutral[30]; // 값 있고 포커스 아닐 때 → 비활성 스타일
     return colors.coolNeutral[20];
   };
 
   // 배경 색상 결정
   const getBackgroundColor = () => {
     if (disabled) return 'transparent';
+    if (!isFocused && hasValue) return colors.background.default; // 값 있고 포커스 아닐 때 → 비활성 스타일
     return colors.coolNeutral[10];
   };
 
@@ -86,21 +87,21 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ width: '100%', maxWidth: 334 }}>
+    <View style={{ width: 334 }}>
       {/* 라벨 */}
       <View
         style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          width: '100%',
+          width: 334,
           marginBottom: 12,
         }}
       >
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -122,7 +123,7 @@ const TextInput = ({
       {/* 입력창 */}
       <View
         style={{
-          width: '100%',
+          width: 334,
           height: 48,
           flexDirection: 'row',
           alignItems: 'center',
@@ -151,7 +152,7 @@ const TextInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: isCompleted ? colors.primary[50] : colors.coolNeutral[70],
             padding: 0,
           }}
@@ -169,17 +170,24 @@ const TextInput = ({
           >
             {unitLabel}
           </Text>
-        ) : (
-          hasValue &&
-          !disabled && (
-            <Pressable
-              onPressIn={handleClear}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <XIcon width={24} height={24} fill={colors.coolNeutral[70]} />
-            </Pressable>
-          )
-        )}
+        ) : hasValue && !disabled && isFocused ? (
+          <Pressable
+            onPressIn={handleClear}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <XIcon width={24} height={24} fill={colors.coolNeutral[70]} />
+          </Pressable>
+        ) : hasValue && !isFocused ? (
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body3Regular,
+              color: colors.coolNeutral[80],
+            }}
+          >
+            (원)
+          </Text>
+        ) : null}
 
       </View>
 

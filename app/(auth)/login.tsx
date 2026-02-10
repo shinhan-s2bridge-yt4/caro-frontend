@@ -10,6 +10,8 @@ import { MainButton } from '../../src/components/common/Button/MainButton';
 import { loginWithEmail } from '@/services/authService';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
+import LogoIcon from '../../assets/icons/logo.svg';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const loadProfile = useProfileStore((s) => s.loadProfile);
 
   const validatePassword = (value: string) => {
     const v = value.trim();
@@ -48,6 +51,9 @@ export default function LoginScreen() {
 
       // zustand에 인증 상태 저장
       setAuth(result);
+
+      // 프로필 정보 로드
+      await loadProfile(result.accessToken);
 
       // 로그인 성공 후 홈으로 이동
       router.replace('/home');
@@ -85,14 +91,20 @@ export default function LoginScreen() {
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         flexGrow: 1,
         backgroundColor: colors.coolNeutral[10],
-        paddingTop: 274,
+        paddingTop: 160,
         alignItems: 'center',
       }}
     >
-    <View style={{ gap: 20 }}>
+    {/* 로고 */}
+    <View style={{ alignItems: 'center', marginBottom: 80 }}>
+      <LogoIcon width={148} height={57} />
+    </View>
+
+    <View style={{ gap: 20, width: 334 }}>
       {/* 아이디 입력 */}
       <TextInput
         label='아이디'
@@ -102,6 +114,7 @@ export default function LoginScreen() {
         keyboardType="email-address"
         autoCapitalize="none"
         onClear={() => setEmail('')}
+        noBlurStyle
       />
 
       {/* 비밀번호 입력 */}
@@ -122,14 +135,12 @@ export default function LoginScreen() {
       {/* 비밀번호를 잊으셨나요? */}
       <Pressable
         onPress={handleForgotPassword}
-        style={{ marginTop: 12, width: 334, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'flex-end', }}
+        style={{ marginTop: 12, width: 334, flexDirection: 'row', justifyContent: 'flex-end', }}
       >
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            fontSize: 12,
-            fontWeight: 600,
-            fontStyle: 'normal',
+            ...typography.styles.body3Semibold,
             color: colors.primary[50],
             textDecorationLine: 'underline',
           }}
@@ -160,7 +171,7 @@ export default function LoginScreen() {
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.captionRegular,
+            ...typography.styles.body3Regular,
             color: colors.coolNeutral[50],
           }}
         >
@@ -170,7 +181,7 @@ export default function LoginScreen() {
           <Text
             style={{
               fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionSemibold,
+              ...typography.styles.body3Semibold,
               color: colors.primary[50],
               textDecorationLine: 'underline',
 
@@ -201,7 +212,7 @@ export default function LoginScreen() {
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.captionMedium,
+            ...typography.styles.body3Medium,
             color: colors.coolNeutral[40],
             paddingHorizontal: 12,
           }}

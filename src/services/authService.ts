@@ -6,6 +6,8 @@ import type {
   LoginResponseData,
   SignUpRequest,
   SignUpResponseData,
+  ReissueRequest,
+  ReissueResponseData,
 } from '@/types/auth';
 
 type EmailExistsResponse = {
@@ -65,6 +67,22 @@ export async function checkEmailExists(email: string): Promise<boolean> {
   return data.data?.exists ?? false;
 }
 
+export async function reissueToken(
+  payload: ReissueRequest,
+): Promise<ReissueResponseData> {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error('EXPO_PUBLIC_API_BASE_URL 이 설정되어있지 않습니다.');
+  }
+
+  const { data } = await axios.post<ApiResponse<ReissueResponseData>>(
+    `${baseUrl}/api/v1/auth/reissue`,
+    payload,
+  );
+
+  return data.data;
+}
+
 export async function logout(params: { accessToken: string }): Promise<void> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
@@ -74,6 +92,7 @@ export async function logout(params: { accessToken: string }): Promise<void> {
     throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
   }
 
+  // logout은 apiClient를 사용하지 않음 (순환 참조 방지 + 토큰 만료 시에도 호출 필요)
   await axios.post<ApiResponse<unknown>>(
     `${baseUrl}/api/v1/auth/logout`,
     null,

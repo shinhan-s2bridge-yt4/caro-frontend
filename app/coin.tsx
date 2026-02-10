@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -15,23 +16,47 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
+import { Toast } from '@/components/common/Toast/Toast';
 import CouponTab from '@/components/common/Category/CouponTab';
 import { MainButton } from '@/components/common/Button/MainButton';
 import CategoryTab from '@/components/common/Category/CategoryTab';
 import type { CategoryKey } from '@/constants/categories';
 import TextInput from '@/components/common/Input/TextInput';
 import NumberInput from '@/components/common/Input/NumberInput';
+import { useAuthStore } from '@/stores/authStore';
+import { useExpenseStore } from '@/stores/expenseStore';
+import { useProfileStore } from '@/stores/profileStore';
+import { useMyCarStore } from '@/stores/myCarStore';
+import type { Expense, ExpenseCategory } from '@/types/expense';
+import type { PrimaryCar } from '@/types/profile';
+
+import { performOcr } from '@/services/ocrService';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import DownIcon from '../assets/icons/DownIcon.svg';
 import UpIcon from '../assets/icons/UpIcon.svg';
 import GraphIcon from '../assets/icons/graphIcon.svg';
+import UpGraphIcon from '../assets/icons/upgraph.svg';
+import RGraphIcon from '../assets/icons/rgraph.svg';
+import GGraphIcon from '../assets/icons/ggraph.svg';
 import LeftIcon from '../assets/icons/LeftIcon.svg';
 import RightIcon from '../assets/icons/RightIcon.svg';
 import GRightIcon from '../assets/icons/GRightIcon.svg';
 import XIcon from '../assets/icons/x_icon.svg';
 import CameraIcon from '../assets/icons/camera.svg';
 import BCarIcon from '../assets/icons/bcar.svg';
+import GCarIcon from '../assets/icons/gcar.svg';
+import WCheckIcon from '../assets/icons/wcheck.svg';
+import WCarIcon from '../assets/icons/wcar.svg';
+import PencilIcon from '../assets/icons/pencil.svg';
+import BPlusIcon from '../assets/icons/bplus.svg';
+import OilingIcon from '../assets/icons/oiling.svg';
+import ParkingIcon from '../assets/icons/parking.svg';
+import InsuranceIcon from '../assets/icons/insurance.svg';
+import TollIcon from '../assets/icons/toll.svg';
+import MaintenanceIcon from '../assets/icons/maintenance.svg';
+import CarwashIcon from '../assets/icons/carwash.svg';
+import ExpendablesIcon from '../assets/icons/expendables.svg';
 
 
 const SCREEN_MAX_WIDTH = 375;
@@ -48,6 +73,7 @@ type CalendarCell = {
   day?: number;
   amountLabel?: string;
   level?: ExpenseLevel;
+  amountColor?: string;
 };
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
@@ -59,6 +85,7 @@ type ExpenseItem = {
   note?: string;
   date: string; // YYYY-MM-DD
   amount: number; // won
+  carInfo?: string; // e.g. "렉서스 ES300h"
 };
 
 const KST_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
@@ -81,8 +108,65 @@ function formatKoreanDateLabel(year: number, month: number, day: number) {
   return `${year}년 ${month}월 ${day}일 (${weekday})`;
 }
 
+// API category를 UI CategoryKey로 변환
+function mapApiCategoryToUi(category: ExpenseCategory): Exclude<CategoryKey, 'ALL'> {
+  const map: Record<ExpenseCategory, Exclude<CategoryKey, 'ALL'>> = {
+    FUEL: 'FUEL',
+    MAINTENANCE: 'REPAIR',
+    PARKING: 'PARKING',
+    TOLL: 'TOLL',
+    CAR_WASH: 'CAR_WASH',
+    INSURANCE: 'INSURANCE',
+    ACCESSORY: 'ACCESSORY',
+  };
+  return map[category];
+}
+
+// UI CategoryKey를 API category로 변환
+function mapUiCategoryToApi(category: CategoryKey): ExpenseCategory | undefined {
+  if (category === 'ALL') return undefined;
+  const map: Record<Exclude<CategoryKey, 'ALL'>, ExpenseCategory> = {
+    FUEL: 'FUEL',
+    REPAIR: 'MAINTENANCE',
+    PARKING: 'PARKING',
+    TOLL: 'TOLL',
+    CAR_WASH: 'CAR_WASH',
+    INSURANCE: 'INSURANCE',
+    ACCESSORY: 'ACCESSORY',
+  };
+  return map[category];
+}
+
+// "2026년 2월 6일 (금)" → "2026-02-06" 변환
+function parseKoreanDateToIso(koreanDate: string): string {
+  const match = koreanDate.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+  if (!match) return '';
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
 export default function CoinScreen() {
   const router = useRouter();
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const { primaryCar } = useProfileStore();
+  const { cars: myCars, isLoading: isCarsLoading, loadMyCars } = useMyCarStore();
+  const {
+    expenses,
+    totalCount,
+    isLoading,
+    error,
+    fetchExpenses,
+    createExpense,
+    isCreating,
+    createError,
+    updateExpense,
+    isUpdating,
+    categories,
+    fetchCategories,
+    summary,
+    isSummaryLoading,
+    fetchSummary,
+  } = useExpenseStore();
 
   const tabs = useMemo(
     () => [
@@ -93,15 +177,18 @@ export default function CoinScreen() {
   );
 
   const [selectedTab, setSelectedTab] = useState<string>(tabs[0]?.id ?? 'calendar');
-  const [selectedDay, setSelectedDay] = useState<number>(28);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [isDaySelected, setIsDaySelected] = useState<boolean>(false);
   const [isMonthlySummaryExpanded, setIsMonthlySummaryExpanded] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('ALL');
+  const [calendarSelectedCategory, setCalendarSelectedCategory] = useState<CategoryKey>('ALL');
   const [isExpenseListExpanded, setIsExpenseListExpanded] = useState<boolean>(false);
+  const [isCalendarExpenseListExpanded, setIsCalendarExpenseListExpanded] = useState<boolean>(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState<boolean>(false);
-  const [currentYear, setCurrentYear] = useState<number>(2026);
-  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(0); // 0=1월
-
   const [initialKst] = useState(() => getKstTodayParts());
+
+  const [currentYear, setCurrentYear] = useState<number>(initialKst.year);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(initialKst.month - 1); // 0=1월
 
   const [addDate, setAddDate] = useState<string>(() =>
     formatKoreanDateLabel(initialKst.year, initialKst.month, initialKst.day),
@@ -109,13 +196,20 @@ export default function CoinScreen() {
   const [addAmount, setAddAmount] = useState<string>('');
   const [addPlace, setAddPlace] = useState<string>('');
   const [addMemo, setAddMemo] = useState<string>('');
-  const [addCategory, setAddCategory] = useState<Exclude<CategoryKey, 'ALL'>>('FUEL');
+  const [addCategory, setAddCategory] = useState<ExpenseCategory>('FUEL');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
   const [restoreAddExpenseAfterDatePicker, setRestoreAddExpenseAfterDatePicker] =
     useState<boolean>(false);
   const [pickedYear, setPickedYear] = useState<number>(initialKst.year);
   const [pickedMonth, setPickedMonth] = useState<number>(initialKst.month); // 1-12
   const [pickedDay, setPickedDay] = useState<number>(initialKst.day);
+  const [isOcrLoading, setIsOcrLoading] = useState<boolean>(false);
+  const [isCarSelectOpen, setIsCarSelectOpen] = useState<boolean>(false);
+  const [selectedCar, setSelectedCar] = useState<PrimaryCar | null>(null);
+  const [isExpenseToastVisible, setIsExpenseToastVisible] = useState<boolean>(false);
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null); // 수정 모드일 때 해당 지출 ID
 
   const yearListRef = useRef<FlatList<number> | null>(null);
   const monthListRef = useRef<FlatList<number> | null>(null);
@@ -191,43 +285,112 @@ export default function CoinScreen() {
     setPickedDay(kst.day);
   };
 
+  // OCR 결과를 폼에 적용
+  const applyOcrResult = (ocrResult: {
+    date: string | null;
+    location: string | null;
+    amount: number | null;
+    suggestedCategory: import('@/services/ocrService').OcrSuggestedCategory;
+  }) => {
+    // 날짜 적용 (YYYY-MM-DD → 한글 형식)
+    if (ocrResult.date) {
+      const [year, month, day] = ocrResult.date.split('-').map(Number);
+      if (year && month && day) {
+        const label = formatKoreanDateLabel(year, month, day);
+        setAddDate(label);
+        setPickedYear(year);
+        setPickedMonth(month);
+        setPickedDay(day);
+      }
+    }
+
+    // 금액 적용
+    if (ocrResult.amount) {
+      setAddAmount(ocrResult.amount.toLocaleString('ko-KR'));
+    }
+
+    // 장소 적용
+    if (ocrResult.location) {
+      setAddPlace(ocrResult.location);
+    }
+
+    // 추천 카테고리 적용
+    if (ocrResult.suggestedCategory) {
+      setAddCategory(ocrResult.suggestedCategory);
+    }
+  };
+
+  // OCR 실행 공통 로직
+  const processOcr = async (imageUri: string) => {
+    setIsOcrLoading(true);
+    try {
+      const ocrResult = await performOcr(imageUri);
+      applyOcrResult(ocrResult);
+
+      // 인식된 항목 안내
+      const recognized: string[] = [];
+      if (ocrResult.date) recognized.push('날짜');
+      if (ocrResult.location) recognized.push('장소');
+      if (ocrResult.amount) recognized.push('금액');
+      if (ocrResult.suggestedCategory) recognized.push('카테고리');
+
+      if (recognized.length > 0) {
+        Alert.alert('OCR 완료', `${recognized.join(', ')}이(가) 자동 입력되었습니다.\n확인 후 수정해주세요.`);
+      } else {
+        Alert.alert('OCR 완료', '영수증에서 정보를 찾지 못했습니다.\n직접 입력해주세요.');
+      }
+    } catch (err) {
+      console.error('OCR 오류:', err);
+      Alert.alert('OCR 오류', '영수증 인식에 실패했습니다.\n직접 입력해주세요.');
+    } finally {
+      setIsOcrLoading(false);
+    }
+  };
+
   const handleReceiptCameraPress = async () => {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) return;
+      if (!perm.granted) {
+        Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
+        return;
+      }
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
+        quality: 0.8,
         allowsEditing: false,
       });
 
-      if (result.canceled) return;
+      if (result.canceled || !result.assets?.[0]?.uri) return;
 
-      // TODO: OCR 연동 시 여기서 result.assets[0].uri 사용
-      // 지금은 촬영만 가능하게 하고, 값 저장/업로드는 이후 연결
-    } catch {
-      // 권한/카메라 실행 실패 시 조용히 무시(추후 토스트 연결 가능)
+      await processOcr(result.assets[0].uri);
+    } catch (err) {
+      console.error('카메라 오류:', err);
+      Alert.alert('오류', '카메라를 실행할 수 없습니다.');
     }
   };
 
   const handleReceiptLibraryPress = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
+      if (!perm.granted) {
+        Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다.');
+        return;
+      }
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
+        quality: 0.8,
         allowsEditing: false,
         selectionLimit: 1,
       });
 
-      if (result.canceled) return;
+      if (result.canceled || !result.assets?.[0]?.uri) return;
 
-      // TODO: OCR 연동 시 여기서 result.assets[0].uri 사용
-    } catch {
-      // 권한/갤러리 실행 실패 시 조용히 무시(추후 토스트 연결 가능)
+      await processOcr(result.assets[0].uri);
+    } catch (err) {
+      console.error('갤러리 오류:', err);
+      Alert.alert('오류', '갤러리를 열 수 없습니다.');
     }
   };
 
@@ -239,31 +402,131 @@ export default function CoinScreen() {
     ]);
   };
 
-  const expenseByMonth = useMemo(() => {
-    // 스크린샷 예시 값 (임시) - 2026-01만 채워둠
-    return new Map<string, Map<number, { amountLabel: string; level: ExpenseLevel }>>([
-      [
-        '2026-01',
-        new Map<number, { amountLabel: string; level: ExpenseLevel }>([
-          [3, { amountLabel: '8만', level: 2 }],
-          [5, { amountLabel: '7만', level: 2 }],
-          [10, { amountLabel: '2만', level: 1 }],
-          [15, { amountLabel: '7만', level: 2 }],
-          [18, { amountLabel: '7만', level: 2 }],
-          [20, { amountLabel: '9만', level: 2 }],
-          [23, { amountLabel: '3만', level: 1 }],
-          [25, { amountLabel: '7만', level: 2 }],
-          [28, { amountLabel: '28만', level: 3 }],
-        ]),
-      ],
-    ]);
-  }, []);
+  // 금액에 따른 색상 및 라벨 결정
+  const getExpenseLevelInfo = (amount: number): { amountLabel: string; level: ExpenseLevel; color: string } => {
+    let amountLabel: string;
+    if (amount >= 10000) {
+      const manWon = Math.floor(amount / 10000);
+      amountLabel = `${manWon}만`;
+    } else if (amount >= 1000) {
+      const cheonWon = Math.floor(amount / 1000);
+      amountLabel = `${cheonWon}천`;
+    } else {
+      amountLabel = `${amount}`;
+    }
+    
+    if (amount <= 10000) {
+      return { amountLabel, level: 1, color: colors.primary[20] };
+    } else if (amount <= 50000) {
+      return { amountLabel, level: 1, color: colors.primary[40] };
+    } else if (amount <= 100000) {
+      return { amountLabel, level: 2, color: colors.primary[60] };
+    } else {
+      return { amountLabel, level: 3, color: colors.primary[80] };
+    }
+  };
 
+  // 실제 지출 데이터 기반으로 날짜별 합계 계산
   const expenseByDay = useMemo(() => {
     const mm = String(currentMonthIndex + 1).padStart(2, '0');
-    const key = `${currentYear}-${mm}`;
-    return expenseByMonth.get(key) ?? new Map<number, { amountLabel: string; level: ExpenseLevel }>();
-  }, [currentYear, currentMonthIndex, expenseByMonth]);
+    const prefix = `${currentYear}-${mm}`;
+    
+    const dayTotals = new Map<number, number>();
+    
+    // 해당 달의 지출을 날짜별로 합산
+    expenses.forEach((expense) => {
+      if (expense.expenseDate.startsWith(prefix)) {
+        const day = parseInt(expense.expenseDate.split('-')[2], 10);
+        const current = dayTotals.get(day) || 0;
+        dayTotals.set(day, current + expense.amount);
+      }
+    });
+    
+    // 합산된 금액으로 레벨 정보 생성
+    const result = new Map<number, { amountLabel: string; level: ExpenseLevel; color: string }>();
+    dayTotals.forEach((total, day) => {
+      if (total > 0) {
+        result.set(day, getExpenseLevelInfo(total));
+      }
+    });
+    
+    return result;
+  }, [currentYear, currentMonthIndex, expenses]);
+
+  // 지출 탭일 때 API 호출
+  useEffect(() => {
+    if (selectedTab === 'expense' && accessToken) {
+      const apiCategory = mapUiCategoryToApi(selectedCategory);
+      fetchExpenses({
+        accessToken,
+        category: apiCategory,
+      });
+    }
+  }, [selectedTab, selectedCategory, accessToken]);
+
+  // 캘린더 탭일 때 API 호출 (현재 보고 있는 월의 데이터를 가져옴)
+  useEffect(() => {
+    if (selectedTab === 'calendar' && accessToken) {
+      const apiCategory = mapUiCategoryToApi(calendarSelectedCategory);
+      const mm = String(currentMonthIndex + 1).padStart(2, '0');
+      const yearMonth = `${currentYear}-${mm}`;
+      fetchExpenses({
+        accessToken,
+        category: apiCategory,
+        yearMonth,
+        size: 100,
+      });
+    }
+  }, [selectedTab, calendarSelectedCategory, accessToken, currentYear, currentMonthIndex]);
+
+  // 지출 요약 API 호출 (월 변경 시마다)
+  useEffect(() => {
+    if (accessToken) {
+      const mm = String(currentMonthIndex + 1).padStart(2, '0');
+      const yearMonth = `${currentYear}-${mm}`;
+      fetchSummary({ accessToken, yearMonth });
+    }
+  }, [accessToken, currentYear, currentMonthIndex, fetchSummary]);
+
+  // 카테고리 목록 조회 (최초 1회)
+  useEffect(() => {
+    if (accessToken && categories.length === 0) {
+      fetchCategories({ accessToken });
+    }
+  }, [accessToken, categories.length, fetchCategories]);
+
+  // 카테고리 로드 후 첫 번째 카테고리를 기본 선택
+  useEffect(() => {
+    if (categories.length > 0 && !categories.find(c => c.category === addCategory)) {
+      setAddCategory(categories[0].category);
+    }
+  }, [categories, addCategory]);
+
+  // 요약 데이터에서 파생된 값들
+  const summaryMonthLabel = useMemo(() => {
+    return `${currentMonthIndex + 1}월`;
+  }, [currentMonthIndex]);
+
+  const summaryTotalAmountLabel = useMemo(() => {
+    if (!summary) return '0원';
+    return `${summary.totalAmount.amount.toLocaleString('ko-KR')}원`;
+  }, [summary]);
+
+  const summaryDifferenceLabel = useMemo(() => {
+    if (!summary) return null;
+    const diff = summary.totalAmount.comparison.difference;
+    if (diff === 0) return '전월과 동일해요';
+    const absDiff = Math.abs(diff).toLocaleString('ko-KR');
+    return diff < 0 ? `${absDiff}원 줄어들었어요` : `${absDiff}원 늘어났어요`;
+  }, [summary]);
+
+  const summaryCategoryItems = useMemo(() => {
+    if (!summary) return [];
+    return summary.categories.map((c) => ({
+      label: c.categoryLabel,
+      value: `${c.amount.toLocaleString('ko-KR')}원`,
+    }));
+  }, [summary]);
 
   const calendarHeaderLabel = useMemo(() => {
     return `${currentYear}년 ${currentMonthIndex + 1}월`;
@@ -278,6 +541,7 @@ export default function CoinScreen() {
       return m - 1;
     });
     setSelectedDay(1);
+    setIsDaySelected(false);
   };
 
   const goNextMonth = () => {
@@ -289,72 +553,95 @@ export default function CoinScreen() {
       return m + 1;
     });
     setSelectedDay(1);
+    setIsDaySelected(false);
   };
 
-  const expenseItems = useMemo<ExpenseItem[]>(
-    () => [
-      {
-        id: '1',
-        category: 'FUEL',
-        title: 'S-OIL 깨나리주유소',
-        note: '현대카드로 결제했고, 무료시간 1시간',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '2',
-        category: 'FUEL',
-        title: 'GS 칼텍스 강남점',
-        note: 'KT 할인 쿠폰을 사용했음',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '3',
-        category: 'FUEL',
-        title: 'SK에너지 판교점',
-        note: '기름값이 근방에서 제일 싸다',
-        date: '2026-02-02',
-        amount: 27000,
-      },
-      {
-        id: '4',
-        category: 'PARKING',
-        title: '역삼역 공영주차장',
-        note: '정기권 구매',
-        date: '2026-02-01',
-        amount: 12000,
-      },
-      {
-        id: '5',
-        category: 'TOLL',
-        title: '하이패스 통행료',
-        note: '출퇴근',
-        date: '2026-02-01',
-        amount: 3500,
-      },
-      {
-        id: '6',
-        category: 'REPAIR',
-        title: '블루핸즈',
-        note: '엔진오일 교체',
-        date: '2026-01-28',
-        amount: 82000,
-      },
-    ],
-    [],
-  );
-
-  const filteredExpenseItems = useMemo(() => {
-    if (selectedCategory === 'ALL') return expenseItems;
-    return expenseItems.filter((it) => it.category === selectedCategory);
-  }, [expenseItems, selectedCategory]);
+  // API 데이터를 UI 형식으로 변환
+  const expenseItems = useMemo<ExpenseItem[]>(() => {
+    return expenses.map((expense) => {
+      const car = expense.memberCar;
+      const carParts = [car?.brandName, car?.modelName, car?.variant].filter(Boolean);
+      const carInfo = carParts.length > 0 ? carParts.join(' ') : undefined;
+      return {
+        id: String(expense.id),
+        category: mapApiCategoryToUi(expense.category),
+        title: expense.location || expense.categoryLabel,
+        note: expense.memo || undefined,
+        date: expense.expenseDate,
+        amount: expense.amount,
+        carInfo,
+      };
+    });
+  }, [expenses]);
 
   const displayedExpenseItems = useMemo(() => {
     return isExpenseListExpanded
-      ? filteredExpenseItems
-      : filteredExpenseItems.slice(0, 5);
-  }, [filteredExpenseItems, isExpenseListExpanded]);
+      ? expenseItems
+      : expenseItems.slice(0, 5);
+  }, [expenseItems, isExpenseListExpanded]);
+
+  // 캘린더 탭용: 월 전체 또는 선택한 날짜의 지출 필터링
+  const selectedDateString = useMemo(() => {
+    const mm = String(currentMonthIndex + 1).padStart(2, '0');
+    const dd = String(selectedDay).padStart(2, '0');
+    return `${currentYear}-${mm}-${dd}`;
+  }, [currentYear, currentMonthIndex, selectedDay]);
+
+  const selectedDateLabel = useMemo(() => {
+    const mm = String(currentMonthIndex + 1).padStart(2, '0');
+    const dd = String(selectedDay).padStart(2, '0');
+    return `${currentYear}.${mm}.${dd}`;
+  }, [currentYear, currentMonthIndex, selectedDay]);
+
+  // 해당 달의 모든 지출
+  const calendarMonthExpenseItems = useMemo<ExpenseItem[]>(() => {
+    const mm = String(currentMonthIndex + 1).padStart(2, '0');
+    const prefix = `${currentYear}-${mm}`;
+    return expenseItems.filter((item) => item.date.startsWith(prefix));
+  }, [expenseItems, currentYear, currentMonthIndex]);
+
+  // 선택한 날짜의 지출
+  const calendarDayExpenseItems = useMemo<ExpenseItem[]>(() => {
+    return expenseItems.filter((item) => item.date === selectedDateString);
+  }, [expenseItems, selectedDateString]);
+
+  // 날짜 선택 여부에 따라 표시할 항목 결정
+  const calendarExpenseItems = isDaySelected ? calendarDayExpenseItems : calendarMonthExpenseItems;
+
+  const displayedCalendarExpenseItems = useMemo(() => {
+    return isCalendarExpenseListExpanded
+      ? calendarExpenseItems
+      : calendarExpenseItems.slice(0, 5);
+  }, [calendarExpenseItems, isCalendarExpenseListExpanded]);
+
+  // API 카테고리를 CategoryTab 형식으로 변환
+  const apiCategoryItems = useMemo(() => {
+    if (categories.length === 0) return undefined; // 로딩 전에는 기본값 사용
+    return [
+      { key: 'ALL' as CategoryKey, label: '전체' },
+      ...categories.map(c => ({
+        key: mapApiCategoryToUi(c.category) as CategoryKey,
+        label: c.categoryLabel,
+      })),
+    ];
+  }, [categories]);
+
+  const calendarSelectedCategoryLabel = useMemo(() => {
+    if (calendarSelectedCategory === 'ALL') return '전체';
+    const found = categories.find(c => mapApiCategoryToUi(c.category) === calendarSelectedCategory);
+    if (found) return found.categoryLabel;
+    return calendarSelectedCategory;
+  }, [calendarSelectedCategory, categories]);
+
+  const openAddExpenseWithDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const label = formatKoreanDateLabel(year, month, day);
+    setAddDate(label);
+    setPickedYear(year);
+    setPickedMonth(month);
+    setPickedDay(day);
+    openCarSelect();
+  };
 
   const selectedCategoryLabel = useMemo(() => {
     const map: Record<CategoryKey, string> = {
@@ -363,6 +650,9 @@ export default function CoinScreen() {
       PARKING: '주차비',
       REPAIR: '정비·수리비',
       TOLL: '통행료',
+      CAR_WASH: '세차비',
+      INSURANCE: '보험료',
+      ACCESSORY: '자동차 용품비',
     };
     return map[selectedCategory];
   }, [selectedCategory]);
@@ -384,6 +674,7 @@ export default function CoinScreen() {
         day: d,
         amountLabel: meta?.amountLabel,
         level: meta?.level ?? 0,
+        amountColor: meta?.color,
       });
     }
 
@@ -395,21 +686,527 @@ export default function CoinScreen() {
     return cells;
   }, [currentMonthIndex, currentYear, expenseByDay]);
 
+  // 차량 선택 모달 열기 (차량 목록 로드 포함)
+  const openCarSelect = () => {
+    if (accessToken) {
+      loadMyCars(accessToken);
+    }
+    setIsCarSelectOpen(true);
+  };
+
+  // 차량 선택 후 지출 추가 폼으로 이동
+  const handleCarSelected = (car: PrimaryCar) => {
+    setSelectedCar(car);
+    setIsCarSelectOpen(false);
+    requestAnimationFrame(() => setIsAddExpenseOpen(true));
+  };
+
+  // 지출 상세 모달 열기
+  const handleExpensePress = (itemId: string) => {
+    const expense = expenses.find((e) => String(e.id) === itemId);
+    if (expense) {
+      setDetailExpense(expense);
+      setIsDetailModalVisible(true);
+    }
+  };
+
+  // 지출 추가 폼에서 차량 변경하기
+  const handleChangeCarFromForm = () => {
+    setIsAddExpenseOpen(false);
+    if (accessToken) {
+      loadMyCars(accessToken);
+    }
+    requestAnimationFrame(() => setIsCarSelectOpen(true));
+  };
+
   return (
     <SafeAreaView
       edges={['top']}
       style={{ flex: 1, backgroundColor: colors.background.default }}
     >
+      {/* 지출 상세 모달 */}
+      <Modal
+        visible={isDetailModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsDetailModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)', justifyContent: 'center', alignItems: 'center' }}>
+          <View
+            style={{
+              width: 355,
+              backgroundColor: colors.coolNeutral[10],
+              borderRadius: 20,
+              padding: 20,
+              gap: 20,
+            }}
+          >
+            {detailExpense && (() => {
+              const car = detailExpense.memberCar;
+              const carLabel = [car?.brandName, car?.modelName, car?.variant].filter(Boolean).join(' ');
+              const matchedCar = myCars.find((c) => c.id === car?.id);
+              const regNumber = matchedCar?.registrationNumber;
+              const dateFormatted = detailExpense.expenseDate.replace(/-/g, '. ');
+
+              return (
+                <>
+                  {/* 헤더 + 구분선 */}
+                  <View style={{ gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.primary[50],
+                          }}
+                        >
+                          {dateFormatted}
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.coolNeutral[80],
+                          }}
+                        >
+                          지출내역
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          if (!detailExpense) return;
+                          // 상세 모달 닫기
+                          setIsDetailModalVisible(false);
+                          // 폼에 기존 데이터 채워넣기
+                          const exp = detailExpense;
+                          const [y, m, d] = exp.expenseDate.split('-').map(Number);
+                          setAddDate(formatKoreanDateLabel(y, m, d));
+                          setPickedYear(y);
+                          setPickedMonth(m);
+                          setPickedDay(d);
+                          setAddAmount(exp.amount.toLocaleString('ko-KR'));
+                          setAddPlace(exp.location || '');
+                          setAddMemo(exp.memo || '');
+                          setAddCategory(exp.category);
+                          setEditingExpenseId(exp.id);
+                          // 차량 매칭
+                          const matched = myCars.find((c) => c.id === exp.memberCar?.id);
+                          if (matched) {
+                            setSelectedCar(matched);
+                          }
+                          // 수정 폼 열기
+                          requestAnimationFrame(() => setIsAddExpenseOpen(true));
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="edit-expense"
+                        hitSlop={8}
+                      >
+                        <PencilIcon width={22} height={22} />
+                      </Pressable>
+                    </View>
+
+                    {/* 구분선 */}
+                    <View style={{ height: 22, borderBottomWidth: 1, borderColor: colors.coolNeutral[30] }} />
+                  </View> 
+
+                  {/* 차량 정보 바 */}
+                  {carLabel && (
+                    <View
+                      style={{
+                        backgroundColor: colors.primary[10],
+                        borderRadius: 12,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 12,
+                      }}
+                    >
+                      <BCarIcon width={20} height={20} />
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body3Semibold,
+                          color: colors.primary[50],
+                        }}
+                      >
+                        {carLabel}
+                      </Text>
+                      {regNumber && (
+                        <>
+                          <View
+                            style={{
+                              width: 1.4,
+                              height: 17,
+                              backgroundColor: colors.primary[50],
+                            }}
+                          />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: colors.primary[50],
+                            }}
+                          >
+                            {regNumber}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  )}
+
+                  {/* 상세 정보 + 굵은 구분선 */}
+                  <View>
+                    <View style={{ gap: 8 }}>
+                      {/* 메모 + 구분선 */}
+                      <View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[80],
+                            }}
+                          >
+                            메모
+                          </Text>
+                          <Text
+                            numberOfLines={2}
+                            style={{
+                              flex: 1,
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[50],
+                              textAlign: 'right',
+                            }}
+                          >
+                            {detailExpense.memo || '-'}
+                          </Text>
+                        </View>
+                        <View style={{ height: 20, borderBottomWidth: 1, borderColor: colors.coolNeutral[30] }} />
+                      </View>
+
+                      {/* 장소 */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 16 }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[80],
+                          }}
+                        >
+                          장소
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            flex: 1,
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Semibold,
+                            color: colors.coolNeutral[50],
+                            textAlign: 'right',
+                          }}
+                        >
+                          {detailExpense.location || '-'}
+                        </Text>
+                      </View>
+
+                      {/* 카테고리 */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[80],
+                          }}
+                        >
+                          카테고리
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Semibold,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          {detailExpense.categoryLabel}
+                        </Text>
+                      </View>
+
+                      {/* 가격 */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[80],
+                          }}
+                        >
+                          가격
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Semibold,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          {detailExpense.amount.toLocaleString('ko-KR')}원
+                        </Text>
+                      </View>
+                    </View>
+
+                  </View>
+
+                  {/* 굵은 구분선 + 전체금액 */}
+                  <View style={{ gap: 12 }}>
+                    <View style={{ height: 2, backgroundColor: colors.coolNeutral[80] }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h2Bold,
+                          color: colors.coolNeutral[70],
+                        }}
+                      >
+                        전체금액
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h2Bold,
+                          color: colors.primary[50],
+                        }}
+                      >
+                        {detailExpense.amount.toLocaleString('ko-KR')} 원
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 버튼 */}
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+                    <Pressable
+                      onPress={() => setIsDetailModalVisible(false)}
+                      style={{
+                        flex: 1,
+                        height: 48,
+                        borderRadius: 12,
+                        backgroundColor: colors.coolNeutral[20],
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="detail-cancel"
+                    >
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body1Bold,
+                          color: colors.coolNeutral[40],
+                        }}
+                      >
+                        취소
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setIsDetailModalVisible(false)}
+                      style={{
+                        flex: 1,
+                        height: 48,
+                        borderRadius: 12,
+                        backgroundColor: colors.primary[50],
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="detail-confirm"
+                    >
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body1Bold,
+                          color: colors.coolNeutral[10],
+                        }}
+                      >
+                        확인
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* 보유한 차량 선택 모달 */}
+      <Modal
+        visible={isCarSelectOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsCarSelectOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
+          <Pressable
+            onPress={() => setIsCarSelectOpen(false)}
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
+            accessibilityRole="button"
+            accessibilityLabel="dismiss-car-select"
+          />
+
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <View
+              style={{
+                width: '100%',
+                backgroundColor: colors.coolNeutral[10],
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingTop: 28,
+                paddingBottom: 40,
+                paddingHorizontal: 20,
+              }}
+            >
+              {/* 헤더 */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 24,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: typography.fontFamily.pretendard,
+                    ...typography.styles.body1Semibold,
+                    color: colors.coolNeutral[90],
+                  }}
+                >
+                  보유한 차량 선택
+                </Text>
+
+                <Pressable
+                  onPress={() => setIsCarSelectOpen(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="close-car-select"
+                  style={{ alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <XIcon width={24} height={24} />
+                </Pressable>
+              </View>
+
+              {/* 차량 목록 */}
+              {isCarsLoading ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color={colors.primary[50]} />
+                </View>
+              ) : myCars.length === 0 ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.body2Medium,
+                      color: colors.coolNeutral[50],
+                    }}
+                  >
+                    등록된 차량이 없습니다.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {myCars.map((car) => {
+                    const isSelected = selectedCar?.id === car.id;
+                    return (
+                      <Pressable
+                        key={car.id}
+                        onPress={() => handleCarSelected(car)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`select-car-${car.id}`}
+                        style={{
+                          width: '100%',
+                          height: 56,
+                          borderRadius: borderRadius.lg,
+                          backgroundColor: isSelected ? colors.primary[50] : colors.background.default,
+                          paddingLeft: 12,
+                          paddingRight: 20,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                          {isSelected ? (
+                            <WCarIcon width={20} height={20} />
+                          ) : (
+                            <GCarIcon width={20} height={20} />
+                          )}
+
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: isSelected ? colors.primary[10] : colors.coolNeutral[40],
+                            }}
+                          >
+                            {car.brandName} {car.modelName} {car.variant}
+                          </Text>
+
+                          <View
+                            style={{
+                              width: 1.4,
+                              height: 17,
+                              backgroundColor: isSelected ? colors.primary[10] : colors.coolNeutral[40],
+                            }}
+                          />
+
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: isSelected ? colors.primary[10] : colors.coolNeutral[40],
+                            }}
+                          >
+                            {car.registrationNumber}
+                          </Text>
+                        </View>
+
+                        {isSelected && (
+                          <View
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: borderRadius.full,
+                              backgroundColor: colors.primary[50],
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <WCheckIcon width={24} height={24} />
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={isAddExpenseOpen}
         transparent
-        animationType="slide"
-        onRequestClose={() => setIsAddExpenseOpen(false)}
+        animationType="fade"
+        onRequestClose={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
           {/* backdrop */}
           <Pressable
-            onPress={() => setIsAddExpenseOpen(false)}
+            onPress={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
             style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             accessibilityRole="button"
             accessibilityLabel="dismiss-add-expense"
@@ -445,13 +1242,14 @@ export default function CoinScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  지출 추가
+                  {editingExpenseId ? '지출 수정' : '지출 추가'}
                 </Text>
 
                 <Pressable
                   onPress={() => {
                     setIsAddExpenseOpen(false);
                     resetAddExpenseForm();
+                    setEditingExpenseId(null);
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="close-add-expense"
@@ -472,6 +1270,7 @@ export default function CoinScreen() {
                     {/* OCR 카드 */}
                     <Pressable
                       onPress={handleReceiptPress}
+                      disabled={isOcrLoading}
                       accessibilityRole="button"
                       accessibilityLabel="receipt-ocr"
                       style={{
@@ -483,34 +1282,61 @@ export default function CoinScreen() {
                         paddingVertical: 20,
                         paddingHorizontal: 10,
                         gap: 10,
+                        opacity: isOcrLoading ? 0.6 : 1,
                       }}
                     >
-                      <View
-                        style={{
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <CameraIcon width={24} height={24} />
-                      </View>
-                      <Text
-                        style={{
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body3Semibold,
-                          color: colors.primary[50],
-                        }}
-                      >
-                        영수증 촬영하기
-                      </Text>
-                      <Text
-                        style={{
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.captionMedium,
-                          color: colors.coolNeutral[40],
-                        }}
-                      >
-                        OCR로 자동입력
-                      </Text>
+                      {isOcrLoading ? (
+                        <>
+                          <ActivityIndicator size="small" color={colors.primary[50]} />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: colors.primary[50],
+                            }}
+                          >
+                            영수증 분석 중...
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[40],
+                            }}
+                          >
+                            잠시만 기다려주세요
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <View
+                            style={{
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <CameraIcon width={24} height={24} />
+                          </View>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Semibold,
+                              color: colors.primary[50],
+                            }}
+                          >
+                            영수증 촬영하기
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[40],
+                            }}
+                          >
+                            OCR로 자동입력
+                          </Text>
+                        </>
+                      )}
                     </Pressable>
 
                     {/* 또는 직접 입력 */}
@@ -519,7 +1345,7 @@ export default function CoinScreen() {
                       <Text
                         style={{
                           fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.captionMedium,
+                          ...typography.styles.body3Medium,
                           color: colors.coolNeutral[40],
                         }}
                       >
@@ -530,20 +1356,23 @@ export default function CoinScreen() {
                   </View>
 
                   <View style={{ gap: 20 }}>
-                    <View style={{ width: '100%', alignItems: 'center', gap: 20 }}>
-                      {/* 선택한 차량(하드코딩) */}
-                      <View style={{ width: '100%', maxWidth: 334, gap: 12 }}>
+                    <View style={{ width: '100%', gap: 20 }}>
+                      {/* 선택한 차량 */}
+                      <View style={{ width: '100%', gap: 12 }}>
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Semibold,
+                            ...typography.styles.body2Semibold,
                             color: colors.coolNeutral[80],
                           }}
                         >
                           선택한 차량
                         </Text>
 
-                        <View
+                        <Pressable
+                          onPress={handleChangeCarFromForm}
+                          accessibilityRole="button"
+                          accessibilityLabel="change-car"
                           style={{
                             width: '100%',
                             height: 48,
@@ -555,17 +1384,17 @@ export default function CoinScreen() {
                             justifyContent: 'space-between',
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                             <BCarIcon width={20} height={20} />
 
                             <Text
                               style={{
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
+                                ...typography.styles.body2Semibold,
                                 color: colors.primary[50],
                               }}
                             >
-                              렉서스 ES300h
+                              {selectedCar ? `${selectedCar.brandName} ${selectedCar.modelName} ${selectedCar.variant}` : '차량 없음'}
                             </Text>
 
                             <View
@@ -579,11 +1408,11 @@ export default function CoinScreen() {
                             <Text
                               style={{
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
+                                ...typography.styles.body2Semibold,
                                 color: colors.primary[50],
                               }}
                             >
-                              123 가 4568
+                              {selectedCar?.registrationNumber ?? '-'}
                             </Text>
                           </View>
 
@@ -592,29 +1421,21 @@ export default function CoinScreen() {
                               width: 24,
                               height: 24,
                               borderRadius: borderRadius.full,
-                              backgroundColor: colors.coolNeutral[10],
+                              backgroundColor: colors.primary[50],
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <Text
-                              style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Bold,
-                                color: colors.primary[50],
-                              }}
-                            >
-                              ✓
-                            </Text>
+                            <WCheckIcon width={24} height={24} />
                           </View>
-                        </View>
+                        </Pressable>
                       </View>
 
-                      <View style={{ width: '100%', maxWidth: 334, gap: 12 }}>
+                      <View style={{ width: '100%', gap: 12 }}>
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body3Semibold,
+                            ...typography.styles.body2Semibold,
                             color: colors.coolNeutral[80],
                           }}
                         >
@@ -639,7 +1460,7 @@ export default function CoinScreen() {
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.body3Regular,
+                              ...typography.styles.body2Regular,
                               color: addDate ? colors.coolNeutral[70] : colors.coolNeutral[30],
                             }}
                           >
@@ -648,54 +1469,50 @@ export default function CoinScreen() {
                         </Pressable>
                       </View>
 
-                      <View style={{ width: '100%', maxWidth: 334 }}>
+                      <View style={{ width: '100%', gap: 12 }}>
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body3Semibold,
+                        ...typography.styles.body2Semibold,
                         color: colors.coolNeutral[80],
-                        marginBottom: 12,
                       }}
                     >
                       카테고리
                     </Text>
 
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      {([
-                        { key: 'FUEL', label: '주유비' },
-                        { key: 'PARKING', label: '주차비' },
-                        { key: 'REPAIR', label: '정비·수리비' },
-                        { key: 'TOLL', label: '통행료' },
-                      ] as const).map((c) => {
-                        const selected = addCategory === c.key;
-                        return (
-                          <Pressable
-                            key={c.key}
-                            onPress={() => setAddCategory(c.key)}
-                            style={{
-                              height: 36,
-                              paddingHorizontal: 12,
-                              borderRadius: borderRadius.md,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: selected
-                                ? colors.primary[50]
-                                : colors.background.default,
-                            }}
-                          >
-                            <Text
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {categories.map((c) => {
+                          const selected = addCategory === c.category;
+                          return (
+                            <Pressable
+                              key={c.category}
+                              onPress={() => setAddCategory(c.category)}
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body3Semibold,
-                                color: selected ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                                height: 36,
+                                paddingHorizontal: 12,
+                                borderRadius: borderRadius.md,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: selected
+                                  ? colors.primary[50]
+                                  : colors.background.default,
                               }}
                             >
-                              {c.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Semibold,
+                                  color: selected ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                                }}
+                              >
+                                {c.categoryLabel}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   </View>
 
                   <NumberInput
@@ -725,11 +1542,80 @@ export default function CoinScreen() {
 
                     {/* 하단 버튼 */}
                     <Pressable
-                      disabled={!isAddEnabled}
-                      onPress={() => {
-                        if (!isAddEnabled) return;
-                        setIsAddExpenseOpen(false);
-                        resetAddExpenseForm();
+                      disabled={!isAddEnabled || isCreating || isUpdating || !selectedCar}
+                      onPress={async () => {
+                        if (!isAddEnabled || !accessToken || !selectedCar) return;
+
+                        const expenseDate = parseKoreanDateToIso(addDate);
+
+                        if (!expenseDate) {
+                          Alert.alert('오류', '날짜가 올바르지 않습니다.');
+                          return;
+                        }
+
+                        if (editingExpenseId) {
+                          // 수정 모드
+                          if (isUpdating) return;
+                          const updateData = {
+                            expenseDate,
+                            amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
+                            category: addCategory,
+                            location: addPlace,
+                            memo: addMemo,
+                          };
+
+                          const success = await updateExpense({
+                            expenseId: editingExpenseId,
+                            request: updateData,
+                            accessToken,
+                          });
+
+                          if (success) {
+                            setIsAddExpenseOpen(false);
+                            resetAddExpenseForm();
+                            setEditingExpenseId(null);
+                            // 지출 목록 + 요약 새로고침
+                            const mm = String(currentMonthIndex + 1).padStart(2, '0');
+                            const yearMonth = `${currentYear}-${mm}`;
+                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchSummary({ accessToken, yearMonth });
+                          } else {
+                            const errorMsg = useExpenseStore.getState().updateError || '지출 내역 수정에 실패했습니다.';
+                            Alert.alert('오류', errorMsg);
+                          }
+                        } else {
+                          // 추가 모드
+                          if (isCreating) return;
+                          const requestData = {
+                            memberCarId: selectedCar.id,
+                            expenseDate,
+                            amount: parseInt(addAmount.replace(/,/g, ''), 10) || 0,
+                            category: addCategory,
+                            location: addPlace,
+                            memo: addMemo,
+                          };
+
+                          console.log('createExpense request:', requestData);
+
+                          const success = await createExpense({
+                            request: requestData,
+                            accessToken,
+                          });
+
+                          if (success) {
+                            setIsAddExpenseOpen(false);
+                            resetAddExpenseForm();
+                            // 지출 목록 + 요약 새로고침
+                            const mm = String(currentMonthIndex + 1).padStart(2, '0');
+                            const yearMonth = `${currentYear}-${mm}`;
+                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchSummary({ accessToken, yearMonth });
+                            setIsExpenseToastVisible(true);
+                          } else {
+                            const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
+                            Alert.alert('오류', errorMsg);
+                          }
+                        }
                       }}
                       style={{
                         width: '100%',
@@ -737,18 +1623,22 @@ export default function CoinScreen() {
                         borderRadius: borderRadius.md,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: isAddEnabled ? colors.primary[50] : colors.coolNeutral[20],
+                        backgroundColor: (isAddEnabled && !isCreating && !isUpdating) ? colors.primary[50] : colors.coolNeutral[20],
                       }}
                     >
-                      <Text
-                        style={{
-                          fontFamily: typography.fontFamily.pretendard,
-                          ...typography.styles.body2Bold,
-                          color: isAddEnabled ? colors.coolNeutral[10] : colors.coolNeutral[40],
-                        }}
-                      >
-                        추가하기
-                      </Text>
+                      {(isCreating || isUpdating) ? (
+                        <ActivityIndicator size="small" color={colors.coolNeutral[10]} />
+                      ) : (
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.h3Bold,
+                            color: isAddEnabled ? colors.coolNeutral[10] : colors.coolNeutral[40],
+                          }}
+                        >
+                          {editingExpenseId ? '수정하기' : '추가하기'}
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -1037,10 +1927,11 @@ export default function CoinScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           alignItems: 'stretch',
+          paddingBottom: 80,
         }}
       >
         <View style={{ width: '100%', flex: 1 }}>
-          <View style={{ width: '100%', maxWidth: SCREEN_MAX_WIDTH, alignSelf: 'center' }}>
+          <View style={{ width: '100%' }}>
           {/* 상단 헤더 */}
           <View
             style={{
@@ -1064,7 +1955,7 @@ export default function CoinScreen() {
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body1Semibold,
+                ...typography.styles.h3Semibold,
                 color: colors.coolNeutral[90],
               }}
             >
@@ -1083,11 +1974,11 @@ export default function CoinScreen() {
           >
             <CouponTab tabs={tabs} selectedTab={selectedTab} onTabChange={setSelectedTab} />
 
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ paddingHorizontal: 20 }}>
               {/* 요약 카드 */}
               <View
                 style={{
-                  width: 335,
+                  width: '100%',
                   backgroundColor: colors.coolNeutral[10],
                   borderRadius: borderRadius.md,
                   padding: 20,
@@ -1107,7 +1998,7 @@ export default function CoinScreen() {
                     color: colors.coolNeutral[80],
                   }}
                 >
-                  <Text style={{ color: colors.primary[50] }}>1월</Text> 소비금액
+                  <Text style={{ color: colors.primary[50] }}>{summaryMonthLabel}</Text> 소비금액
                 </Text>
 
                 <Pressable
@@ -1125,6 +2016,9 @@ export default function CoinScreen() {
               </View>
 
               {!isMonthlySummaryExpanded ? (
+                isSummaryLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary[50]} style={{ marginTop: 12 }} />
+                ) : (
                 <Text
                   style={{
                     marginTop: 12,
@@ -1133,8 +2027,9 @@ export default function CoinScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  454,000원
+                  {summaryTotalAmountLabel}
                 </Text>
+                )
               ) : (
                 <View style={{ marginTop: 16, gap: 12 }}>
                   <View
@@ -1145,35 +2040,42 @@ export default function CoinScreen() {
                     }}
                   />
 
+                  {summaryDifferenceLabel && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.captionMedium,
+                        ...typography.styles.body3Medium,
                         color: colors.coolNeutral[50],
                       }}
                     >
                       전월대비
                     </Text>
-                    <GraphIcon width={12} height={12} />
+                    {summary && summary.totalAmount.comparison.difference > 0 ? (
+                      <UpGraphIcon width={12} height={12} />
+                    ) : summary && summary.totalAmount.comparison.difference < 0 ? (
+                      <RGraphIcon width={12} height={12} />
+                    ) : (
+                      <GGraphIcon width={12} height={12} />
+                    )}
                     <Text
                       style={{
                         fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.captionSemibold,
-                        color: colors.primary[50],
+                        ...typography.styles.body3Semibold,
+                        color: summary && summary.totalAmount.comparison.difference > 0
+                          ? colors.primary[50]
+                          : summary && summary.totalAmount.comparison.difference < 0
+                            ? colors.red[40]
+                            : colors.coolNeutral[40],
                       }}
                     >
-                      6,000원 줄어들었어요
+                      {summaryDifferenceLabel}
                     </Text>
                   </View>
+                  )}
 
                   <View style={{ gap: 8 }}>
-                    {[
-                      { label: '주유비', value: '0원' },
-                      { label: '주차비', value: '0원' },
-                      { label: '정비 · 수리비', value: '0원' },
-                      { label: '통행료', value: '0원' },
-                    ].map((item) => (
+                    {summaryCategoryItems.map((item) => (
                       <View
                         key={item.label}
                         style={{
@@ -1235,7 +2137,7 @@ export default function CoinScreen() {
                         color: colors.coolNeutral[90],
                       }}
                     >
-                      454,000원
+                      {summaryTotalAmountLabel}
                     </Text>
                   </View>
                 </View>
@@ -1245,7 +2147,7 @@ export default function CoinScreen() {
                 <MainButton
                   label="지출내역 추가하기"
                   alwaysPrimary
-                  onPress={() => setIsAddExpenseOpen(true)}
+                  onPress={openCarSelect}
                   containerStyle={{ width: '100%' }}
                 />
               </View>
@@ -1262,12 +2164,9 @@ export default function CoinScreen() {
                 backgroundColor: colors.coolNeutral[10],
               }}
             >
-              {/* 큰 화면에서도 7칸 유지: 내용 폭을 375로 제한 */}
               <View
                 style={{
                   width: '100%',
-                  maxWidth: SCREEN_MAX_WIDTH,
-                  alignSelf: 'center',
                   paddingVertical: 24,
                   paddingHorizontal: 20,
                 }}
@@ -1319,7 +2218,7 @@ export default function CoinScreen() {
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.captionMedium,
+                              ...typography.styles.body1Medium,
                               color: colors.coolNeutral[40],
                             }}
                           >
@@ -1341,13 +2240,18 @@ export default function CoinScreen() {
                       {calendarCells.map((cell) => {
                         const isSelected = !!cell.day && cell.day === selectedDay;
                         const hasDay = !!cell.day;
-                        const amountColor = colors.primary[50];
+                        const isActiveSelected = isSelected && isDaySelected;
 
                         return (
                           <Pressable
                             key={cell.key}
                             disabled={!hasDay}
-                            onPress={() => hasDay && setSelectedDay(cell.day!)}
+                            onPress={() => {
+                              if (hasDay) {
+                                setSelectedDay(cell.day!);
+                                setIsDaySelected(true);
+                              }
+                            }}
                             style={{
                               width: CALENDAR_CELL_SIZE,
                               height: CALENDAR_CELL_SIZE,
@@ -1355,6 +2259,9 @@ export default function CoinScreen() {
                               justifyContent: 'flex-start',
                               paddingTop: 4,
                               paddingBottom: 2,
+                              backgroundColor: isActiveSelected ? colors.primary[10] : 'transparent',
+                              borderBottomWidth: isActiveSelected ? 1 : 0,
+                              borderBottomColor: isActiveSelected ? colors.primary[50] : 'transparent',
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={hasDay ? `day-${cell.day}` : 'empty'}
@@ -1373,12 +2280,12 @@ export default function CoinScreen() {
                                   <Text
                                     style={{
                                       fontFamily: typography.fontFamily.pretendard,
-                                      fontSize: 15,
-                                      fontWeight: '600',
-                                      fontStyle: 'normal',
-                                      color: cell.amountLabel
-                                        ? colors.coolNeutral[80]
-                                        : colors.coolNeutral[40],
+                                      ...typography.styles.body1Semibold,
+                                      color: isActiveSelected
+                                        ? colors.primary[50]
+                                        : cell.amountLabel
+                                          ? colors.coolNeutral[80]
+                                          : colors.coolNeutral[40],
                                     }}
                                   >
                                     {cell.day}
@@ -1390,10 +2297,8 @@ export default function CoinScreen() {
                                 <Text
                                   style={{
                                     fontFamily: typography.fontFamily.pretendard,
-                                    fontSize: 9,
-                                    fontWeight: '700',
-                                    fontStyle: 'normal',
-                                    color: amountColor,
+                                    ...typography.styles.captionBold,
+                                    color: cell.amountColor ?? colors.primary[50],
                                   }}
                                 >
                                   {cell.amountLabel}
@@ -1408,63 +2313,389 @@ export default function CoinScreen() {
                 </View>
               </View>
 
-              {/* 범례 */}
-              <View
-                style={{
-                  width: '100%',
-                  maxWidth: SCREEN_MAX_WIDTH,
-                  alignSelf: 'center',
-                  paddingHorizontal: 20,
-                  marginTop: 14,
-                }}
-              >
+              {/* 범례 + 카테고리 탭 + 리스트 */}
+              <View style={{ gap: 20, backgroundColor: colors.background.default }}>
+                {/* 범례 */}
                 <View
                   style={{
-                    height: 1,
-                    backgroundColor: colors.coolNeutral[30],
-                    opacity: 0.6,
+                    width: '100%',
+                    paddingHorizontal: 20,
+                    paddingTop: 14,
+                    backgroundColor: colors.coolNeutral[10],
                   }}
-                />
-
-                <View style={{ paddingVertical: 17, gap: 12 }}>
-                  <Text
+                >
+                  <View
                     style={{
-                      fontFamily: typography.fontFamily.pretendard,
-                      ...typography.styles.captionMedium,
-                      color: colors.coolNeutral[40],
+                      height: 1,
+                      backgroundColor: colors.coolNeutral[30],
+                      opacity: 0.6,
                     }}
-                  >
-                    지출 범위
-                  </Text>
+                  />
 
-                  <View style={{ flexDirection: 'row', gap: 20 }}>
-                    {[
-                      { label: '~1만', color: colors.primary[20] },
-                      { label: '~5만', color: colors.primary[40] },
-                      { label: '~10만', color: colors.primary[60] },
-                      { label: '10만+', color: colors.primary[80] },
-                    ].map((item) => (
-                      <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 4,
-                            backgroundColor: item.color,
-                          }}
-                        />
+                  <View style={{ paddingTop: 17, paddingBottom: 24, gap: 12 }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body3Medium,
+                        color: colors.coolNeutral[40],
+                      }}
+                    >
+                      지출 범위
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', gap: 20 }}>
+                      {[
+                        { label: '~1만', color: colors.primary[20] },
+                        { label: '~5만', color: colors.primary[40] },
+                        { label: '~10만', color: colors.primary[60] },
+                        { label: '10만+', color: colors.primary[80] },
+                        { label: '20만+', color: colors.primary[100] },
+                      ].map((item) => (
+                        <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 4,
+                              backgroundColor: item.color,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              fontFamily: typography.fontFamily.pretendard,
+                              ...typography.styles.body3Medium,
+                              color: colors.coolNeutral[40],
+                            }}
+                          >
+                            {item.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* 카테고리 탭 + 타이틀 + 리스트 */}
+                <View style={{ backgroundColor: colors.coolNeutral[10] }}>
+                  {/* 카테고리 탭 */}
+                  <View style={{ paddingLeft: 20, paddingVertical: 32 }}>
+                    <CategoryTab
+                      selected={calendarSelectedCategory}
+                      onSelect={(key) => {
+                        setCalendarSelectedCategory(key);
+                        setIsCalendarExpenseListExpanded(false);
+                      }}
+                      categories={apiCategoryItems}
+                    />
+                  </View>
+
+              {/* 타이틀 */}
+              <View style={{ paddingHorizontal: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {isDaySelected ? (
+                    <>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h3Bold,
+                          color: colors.primary[50],
+                        }}
+                      >
+                        {selectedDateLabel}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h3Bold,
+                          color: colors.coolNeutral[80],
+                        }}
+                      >
+                        지출
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h3Bold,
+                          color: colors.coolNeutral[90],
+                        }}
+                      >
+                        최근 지출내역
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.h3Bold,
+                          color: colors.primary[50],
+                        }}
+                      >
+                        {calendarMonthExpenseItems.length}건
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {/* 리스트 */}
+              <View style={{ backgroundColor: colors.coolNeutral[10] }}>
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={colors.primary[50]} />
+                  </View>
+                ) : error ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Medium,
+                        color: colors.coolNeutral[60],
+                        textAlign: 'center',
+                      }}
+                    >
+                      {error}
+                    </Text>
+                  </View>
+                ) : calendarExpenseItems.length === 0 ? (
+                  isDaySelected ? (
+                    <View style={{ paddingHorizontal: 20, paddingVertical: 60, alignItems: 'center', gap: 12 }}>
+                      <Pressable
+                        onPress={() => openAddExpenseWithDate(selectedDateString)}
+                        accessibilityRole="button"
+                        accessibilityLabel="add-expense-for-date"
+                      >
+                        <BPlusIcon width={40} height={40} />
+                      </Pressable>
+                      <View style={{ alignItems: 'center', gap: 4 }}>
                         <Text
                           style={{
                             fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.captionMedium,
+                            ...typography.styles.body2Semibold,
                             color: colors.coolNeutral[40],
+                            textAlign: 'center',
                           }}
                         >
-                          {item.label}
+                          아직 지출내역이 없어요
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body2Semibold,
+                            color: colors.coolNeutral[40],
+                            textAlign: 'center',
+                          }}
+                        >
+                          직접 입력해주세요
                         </Text>
                       </View>
-                    ))}
-                  </View>
+                    </View>
+                  ) : (
+                    <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body2Medium,
+                          color: colors.coolNeutral[60],
+                          textAlign: 'center',
+                        }}
+                      >
+                        지출 내역이 없습니다.
+                      </Text>
+                    </View>
+                  )
+                ) : (
+                  displayedCalendarExpenseItems.map((item, idx) => {
+                    const isLast = idx === displayedCalendarExpenseItems.length - 1;
+                    const categoryLabelMap: Record<Exclude<CategoryKey, 'ALL'>, string> = {
+                      FUEL: '주유비',
+                      PARKING: '주차비',
+                      REPAIR: '정비·수리비',
+                      TOLL: '통행료',
+                      CAR_WASH: '세차비',
+                      INSURANCE: '보험료',
+                      ACCESSORY: '자동차 용품비',
+                    };
+                    return (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => handleExpensePress(item.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`calendar-expense-${item.id}`}
+                        style={{
+                          paddingHorizontal: 20,
+                          paddingVertical: 16,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          ...(isLast
+                            ? {}
+                            : {
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.coolNeutral[30],
+                              }),
+                        }}
+                      >
+                        {/* 썸네일 */}
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: borderRadius.full,
+                            backgroundColor: colors.background.default,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {item.category === 'FUEL' && <OilingIcon width={24} height={24} />}
+                          {item.category === 'PARKING' && <ParkingIcon width={24} height={24} />}
+                          {item.category === 'INSURANCE' && <InsuranceIcon width={24} height={24} />}
+                          {item.category === 'TOLL' && <TollIcon width={24} height={24} />}
+                          {item.category === 'REPAIR' && <MaintenanceIcon width={24} height={24} />}
+                          {item.category === 'CAR_WASH' && <CarwashIcon width={24} height={24} />}
+                          {item.category === 'ACCESSORY' && <ExpendablesIcon width={24} height={24} />}
+                        </View>
+
+                        {/* 본문 */}
+                        <View style={{ flex: 1, gap: 6 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                flex: 1,
+                                fontFamily: typography.fontFamily.pretendard,
+                                ...typography.styles.body2Semibold,
+                                color: colors.coolNeutral[90],
+                              }}
+                            >
+                              {item.title}
+                            </Text>
+
+                            <GRightIcon width={24} height={24} />
+                          </View>
+
+                          <View style={{ gap: 4 }}>
+                            {item.carInfo && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <GCarIcon width={14} height={14} />
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    fontFamily: typography.fontFamily.pretendard,
+                                    ...typography.styles.captionSemibold,
+                                    color: colors.coolNeutral[40],
+                                  }}
+                                >
+                                  {item.carInfo}
+                                </Text>
+                              </View>
+                            )}
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              {item.note ? (
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: typography.fontFamily.pretendard,
+                                    ...typography.styles.captionMedium,
+                                    color: colors.primary[30],
+                                  }}
+                                >
+                                  {item.note}
+                                </Text>
+                              ) : (
+                                <View style={{ flex: 1 }} />
+                              )}
+
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Bold,
+                                  color: colors.primary[50],
+                                }}
+                              >
+                                {item.amount.toLocaleString('ko-KR')}원
+                              </Text>
+                            </View>
+
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-end',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionMedium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {categoryLabelMap[item.category]}
+                              </Text>
+
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionMedium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {item.date}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </View>
+
+              {calendarExpenseItems.length > 5 && (
+                <Pressable
+                  onPress={() => setIsCalendarExpenseListExpanded((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel="calendar-expense-list-toggle"
+                  style={{
+                    backgroundColor: colors.coolNeutral[10],
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 16,
+                    flexDirection: 'row',
+                    borderTopWidth: 1,
+                    borderTopColor: colors.coolNeutral[30],
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.fontFamily.pretendard,
+                      ...typography.styles.body3Medium,
+                      color: colors.coolNeutral[50],
+                    }}
+                  >
+                    {isCalendarExpenseListExpanded ? '접기' : '더보기'}
+                  </Text>
+                  {isCalendarExpenseListExpanded ? (
+                    <UpIcon width={22} height={22} />
+                  ) : (
+                    <DownIcon width={22} height={22} />
+                  )}
+                </Pressable>
+              )}
                 </View>
               </View>
             </View>
@@ -1474,20 +2705,15 @@ export default function CoinScreen() {
           {selectedTab === 'expense' && (
             <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
               {/* 카테고리 탭 */}
-              <View style={{ paddingLeft: 20 }}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingVertical: 32 }}
-                >
-                  <CategoryTab
-                    selected={selectedCategory}
-                    onSelect={(key) => {
-                      setSelectedCategory(key);
-                      setIsExpenseListExpanded(false);
-                    }}
-                  />
-                </ScrollView>
+              <View style={{ paddingLeft: 20, paddingVertical: 32 }}>
+                <CategoryTab
+                  selected={selectedCategory}
+                  onSelect={(key) => {
+                    setSelectedCategory(key);
+                    setIsExpenseListExpanded(false);
+                  }}
+                  categories={apiCategoryItems}
+                />
               </View>
 
               {/* 타이틀 */}
@@ -1509,70 +2735,97 @@ export default function CoinScreen() {
                       color: colors.primary[50],
                     }}
                   >
-                    {filteredExpenseItems.length}건
+                    {totalCount}건
                   </Text>
                 </View>
               </View>
 
               {/* 리스트 */}
               <View style={{ backgroundColor: colors.coolNeutral[10] }}>
-                {displayedExpenseItems.map((item, idx) => {
-                  const isLast = idx === displayedExpenseItems.length - 1;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {}}
-                      accessibilityRole="button"
-                      accessibilityLabel={`expense-${item.id}`}
+                {isLoading ? (
+                  <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={colors.primary[50]} />
+                  </View>
+                ) : error ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                    <Text
                       style={{
-                        paddingHorizontal: 20,
-                        paddingVertical: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        ...(isLast
-                          ? {}
-                          : {
-                              borderBottomWidth: 1,
-                              borderBottomColor: colors.coolNeutral[30],
-                            }),
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Medium,
+                        color: colors.coolNeutral[60],
+                        textAlign: 'center',
                       }}
                     >
-                      {/* 썸네일 */}
-                      <View
+                      {error}
+                    </Text>
+                  </View>
+                ) : expenseItems.length === 0 ? (
+                  <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.pretendard,
+                        ...typography.styles.body2Medium,
+                        color: colors.coolNeutral[60],
+                        textAlign: 'center',
+                      }}
+                    >
+                      지출 내역이 없습니다.
+                    </Text>
+                  </View>
+                ) : (
+                  displayedExpenseItems.map((item, idx) => {
+                    const isLast = idx === displayedExpenseItems.length - 1;
+                    const categoryLabelMap: Record<Exclude<CategoryKey, 'ALL'>, string> = {
+                      FUEL: '주유비',
+                      PARKING: '주차비',
+                      REPAIR: '정비·수리비',
+                      TOLL: '통행료',
+                      CAR_WASH: '세차비',
+                      INSURANCE: '보험료',
+                      ACCESSORY: '자동차 용품비',
+                    };
+                    return (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => handleExpensePress(item.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`expense-${item.id}`}
                         style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: borderRadius.full,
-                          backgroundColor: colors.background.default,
+                          paddingHorizontal: 20,
+                          paddingVertical: 16,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          ...(isLast
+                            ? {}
+                            : {
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.coolNeutral[30],
+                              }),
                         }}
-                      />
-
-                      {/* 본문 */}
-                      <View style={{ flex: 1, gap: 6 }}>
+                      >
+                        {/* 썸네일 */}
                         <View
                           style={{
-                            flexDirection: 'row',
+                            width: 44,
+                            height: 44,
+                            borderRadius: borderRadius.full,
+                            backgroundColor: colors.background.default,
                             alignItems: 'center',
-                            justifyContent: 'space-between',
+                            justifyContent: 'center',
                           }}
                         >
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              flex: 1,
-                              fontFamily: typography.fontFamily.pretendard,
-                              ...typography.styles.body3Semibold,
-                              color: colors.coolNeutral[90],
-                            }}
-                          >
-                            {item.title}
-                          </Text>
-
-                          <GRightIcon width={24} height={24} />
+                          {item.category === 'FUEL' && <OilingIcon width={24} height={24} />}
+                          {item.category === 'PARKING' && <ParkingIcon width={24} height={24} />}
+                          {item.category === 'INSURANCE' && <InsuranceIcon width={24} height={24} />}
+                          {item.category === 'TOLL' && <TollIcon width={24} height={24} />}
+                          {item.category === 'REPAIR' && <MaintenanceIcon width={24} height={24} />}
+                          {item.category === 'CAR_WASH' && <CarwashIcon width={24} height={24} />}
+                          {item.category === 'ACCESSORY' && <ExpendablesIcon width={24} height={24} />}
                         </View>
 
-                        <View style={{ gap: 4 }}>
+                        {/* 본문 */}
+                        <View style={{ flex: 1, gap: 6 }}>
                           <View
                             style={{
                               flexDirection: 'row',
@@ -1580,66 +2833,109 @@ export default function CoinScreen() {
                               justifyContent: 'space-between',
                             }}
                           >
-                            {/* 메모(왼쪽) + 금액(오른쪽) 같은 줄 */}
                             <Text
                               numberOfLines={1}
                               style={{
                                 flex: 1,
                                 fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: item.note ? colors.primary[50] : colors.coolNeutral[40],
+                                ...typography.styles.body2Semibold,
+                                color: colors.coolNeutral[90],
                               }}
                             >
-                              {item.note ?? item.date}
+                              {item.title}
                             </Text>
 
-                            <Text
-                              style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Bold,
-                                color: colors.primary[50],
-                              }}
-                            >
-                              {item.amount.toLocaleString('ko-KR')}원
-                            </Text>
+                            <GRightIcon width={24} height={24} />
                           </View>
 
-                          {/* 날짜 + 카테고리 */}
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'flex-end',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <Text
+                          <View style={{ gap: 4 }}>
+                            {item.carInfo && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <GCarIcon width={14} height={14} />
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    fontFamily: typography.fontFamily.pretendard,
+                                    ...typography.styles.captionSemibold,
+                                    color: colors.coolNeutral[40],
+                                  }}
+                                >
+                                  {item.carInfo}
+                                </Text>
+                              </View>
+                            )}
+                            <View
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: colors.coolNeutral[40],
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                               }}
                             >
-                              {item.date}
-                            </Text>
+                              {/* 메모(왼쪽) + 금액(오른쪽) 같은 줄 */}
+                              {item.note ? (
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: typography.fontFamily.pretendard,
+                                    ...typography.styles.captionMedium,
+                                    color: colors.primary[30],
+                                  }}
+                                >
+                                  {item.note}
+                                </Text>
+                              ) : (
+                                <View style={{ flex: 1 }} />
+                              )}
 
-                            <Text
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.body2Bold,
+                                  color: colors.primary[50],
+                                }}
+                              >
+                                {item.amount.toLocaleString('ko-KR')}원
+                              </Text>
+                            </View>
+
+                            {/* 날짜 + 카테고리 */}
+                            <View
                               style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.captionMedium,
-                                color: colors.coolNeutral[40],
+                                flexDirection: 'row',
+                                alignItems: 'flex-end',
+                                justifyContent: 'space-between',
                               }}
                             >
-                              {selectedCategoryLabel}
-                            </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionMedium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {categoryLabelMap[item.category]}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontFamily: typography.fontFamily.pretendard,
+                                  ...typography.styles.captionMedium,
+                                  color: colors.coolNeutral[40],
+                                }}
+                              >
+                                {item.date}
+                              </Text>
+
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                      </Pressable>
+                    );
+                  })
+                )}
               </View>
 
-              {filteredExpenseItems.length > 5 && (
+              {expenseItems.length > 5 && (
                 <Pressable
                   onPress={() => setIsExpenseListExpanded((v) => !v)}
                   accessibilityRole="button"
@@ -1675,6 +2971,34 @@ export default function CoinScreen() {
         </View>
       </ScrollView>
 
+      {/* 플로팅 지출 추가 버튼 (캘린더 날짜 선택 + 지출내역 없음일 때만 숨김) */}
+      {!(selectedTab === 'calendar' && isDaySelected && calendarExpenseItems.length === 0) && (
+        <Pressable
+          onPress={
+            selectedTab === 'calendar' && isDaySelected
+              ? () => openAddExpenseWithDate(selectedDateString)
+              : openCarSelect
+          }
+          accessibilityRole="button"
+          accessibilityLabel="지출내역 추가"
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: 100,
+            zIndex: 100,
+            // 그림자 (iOS)
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.18,
+            shadowRadius: 8,
+            // 그림자 (Android)
+            elevation: 6,
+          }}
+        >
+          <BPlusIcon width={56} height={56} />
+        </Pressable>
+      )}
+
       {/* 하단 네비게이션 영역은 흰 배경으로 가로 꽉 채움(좌우 빈공간 방지) */}
       <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
         <View style={{  }}>
@@ -1697,6 +3021,19 @@ export default function CoinScreen() {
           />
         </View>
       </View>
+
+      {/* 지출 추가 완료 토스트 */}
+      <Toast
+        visible={isExpenseToastVisible}
+        message="지출내역이 추가되었어요!"
+        actionLabel="보러가기"
+        onAction={() => {
+          setSelectedTab('expense');
+          setSelectedCategory('ALL');
+        }}
+        onDismiss={() => setIsExpenseToastVisible(false)}
+        duration={5000}
+      />
     </SafeAreaView>
   );
 }

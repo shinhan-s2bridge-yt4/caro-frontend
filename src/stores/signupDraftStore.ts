@@ -18,9 +18,14 @@ type SignupVehicleDraft = {
   mileage?: number;
 };
 
+// 플로우 모드: signup(회원가입), add-vehicle(마이페이지에서 차량 추가)
+type FlowMode = 'signup' | 'add-vehicle';
+
 type SignupDraftState = {
+  mode: FlowMode;
   account: SignupAccountDraft | null;
   vehicle: SignupVehicleDraft;
+  setMode: (mode: FlowMode) => void;
   setAccount: (account: SignupAccountDraft) => void;
   updateVehicle: (patch: Partial<SignupVehicleDraft>) => void;
   clearDraft: () => void;
@@ -29,8 +34,10 @@ type SignupDraftState = {
 const initialVehicle: SignupVehicleDraft = {};
 
 export const useSignupDraftStore = create<SignupDraftState>((set) => ({
+  mode: 'signup',
   account: null,
   vehicle: initialVehicle,
+  setMode: (mode) => set({ mode }),
   setAccount: (account) => set({ account }),
   updateVehicle: (patch) =>
     set((s) => ({
@@ -41,6 +48,7 @@ export const useSignupDraftStore = create<SignupDraftState>((set) => ({
     })),
   clearDraft: () =>
     set({
+      mode: 'signup',
       account: null,
       vehicle: initialVehicle,
     }),

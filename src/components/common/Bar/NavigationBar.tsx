@@ -34,7 +34,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
     { key: 'home', label: '홈', Icon: HomeIcon, activeIcon: AHomeIcon },
     { key: 'car', label: '운행기록', Icon: CarIcon, activeIcon: ACarIcon },
     { key: 'coin', label: '지출관리', Icon: CoinIcon, activeIcon: ACoinIcon },
-    { key: 'store', label: '스토어', Icon: StoreIcon, activeIcon: AStoreIcon },
+    { key: 'store', label: '리워드', Icon: StoreIcon, activeIcon: AStoreIcon },
     { key: 'user', label: '마이페이지', Icon: UserIcon, activeIcon: AUserIcon },
   ] as const;
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { TextInput as RNTextInput, Pressable, Text, TextInputProps, View } from 'react-native';
 import { colors, typography, borderRadius } from '@/theme';
 import XIcon from '../../../../assets/icons/x_icon.svg';
@@ -26,6 +26,7 @@ const PasswordInput = ({
   ...props
 }: CustomPasswordInputProps) => {
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<RNTextInput>(null);
   // "일회성 보기": 누르는 동안만 잠깐 보여주기
   const [isPasswordRevealed, setIsPasswordRevealed] = useState(false);
   
@@ -63,14 +64,21 @@ const PasswordInput = ({
     onBlur?.(e);
   };
 
+  const handleClear = () => {
+    onClear?.();
+    if (!disabled) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
+
   return (
-    <View style={{  }}>
+    <View style={{ width: 334 }}>
       {/* 라벨 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: 334, marginBottom: 12}}>
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -107,6 +115,7 @@ const PasswordInput = ({
         }}
       >
         <RNTextInput
+          ref={inputRef}
           value={value}
           editable={!disabled}
           placeholderTextColor={colors.coolNeutral[30]}
@@ -117,7 +126,7 @@ const PasswordInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: colors.coolNeutral[70],
             padding: 0,
           }}
@@ -128,17 +137,17 @@ const PasswordInput = ({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
 
-          {/* X 버튼 - 포커스 중이거나 값이 있을 때만 표시 */}
-          {(isFocused || hasValue) && !disabled && (
+          {/* X 버튼 - 포커스 상태이고 값이 있을 때만 표시 */}
+          {hasValue && !disabled && isFocused && (
             <Pressable
-              onPress={onClear}
+              onPressIn={handleClear}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <XIcon width={24} height={24} fill={colors.coolNeutral[70]} />
             </Pressable>
           )}
-                    {/* 비밀번호 보기/숨기기 - 값 있을 때만 */}
-          {!!hasValue && !disabled && (
+          {/* 비밀번호 보기/숨기기 - 포커스 상태이고 값 있을 때만 */}
+          {!!hasValue && !disabled && isFocused && (
             <Pressable
               onPressIn={() => setIsPasswordRevealed(true)}
               onPressOut={() => setIsPasswordRevealed(false)}

@@ -23,6 +23,7 @@ export interface ToggleButtonProps {
   width?: DimensionValue;
   height?: number;
   containerStyle?: StyleProp<ViewStyle>;
+  activeTextColor?: string;
   showIconWhenInactive?: boolean;
   testID?: string;
 }
@@ -36,6 +37,7 @@ export const ToggleButton = ({
   width = 138,
   height = 34,
   containerStyle,
+  activeTextColor,
   showIconWhenInactive = false,
   testID = 'toggle-button',
 }: ToggleButtonProps) => {
@@ -96,18 +98,18 @@ export const ToggleButton = ({
               ...(shouldUnsetFlex ? { flex: undefined, flexGrow: 0, flexShrink: 0 } : null),
             }}
           >
-            {shouldShowIcon ? <Icon width={16} height={16} /> : null}
             <Text
               style={{
                 fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionSemibold,
-                color: isActive ? colors.primary[50] : colors.coolNeutral[10],
+                ...typography.styles.body3Semibold,
+                color: isActive ? (activeTextColor ?? colors.primary[50]) : colors.coolNeutral[10],
                 ...(shouldPadInactiveTextRight ? { paddingVertical: 4, paddingRight: 8 } : null),
                 ...(shouldPadInactiveTextLeft ? { paddingVertical: 4, paddingLeft: 8 } : null),
               }}
             >
               {opt.label}
             </Text>
+            {shouldShowIcon ? <Icon width={16} height={16} /> : null}
           </Pressable>
         );
       })}

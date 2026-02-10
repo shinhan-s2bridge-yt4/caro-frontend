@@ -20,7 +20,7 @@ const CouponTab = ({ tabs, selectedTab, onTabChange }: CouponTabProps) => {
         borderBottomColor: colors.coolNeutral[30],
         paddingHorizontal: 12,
         gap: 4,
-        width:375,
+        width: '100%',
       }}
     >
       <View
@@ -37,12 +37,11 @@ const CouponTab = ({ tabs, selectedTab, onTabChange }: CouponTabProps) => {
               key={tab.id}
               onPress={() => onTabChange(tab.id)}
               style={{
-                width: 109,
                 flex: 1,
                 padding: 12,
                 borderBottomWidth: 1.8,
                 borderBottomColor: isSelected
-                  ? colors.coolNeutral[70]      // 선택: 보라색
+                  ? colors.coolNeutral[70]      // 선택
                   : 'transparent',          // 미선택: 투명
                 alignItems: 'center',
                 justifyContent: 'center',

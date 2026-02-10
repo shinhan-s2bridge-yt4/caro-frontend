@@ -9,6 +9,7 @@ interface CustomTextInputProps extends TextInputProps {
   error?: string;
   disabled?: boolean;
   onClear?: () => void;
+  noBlurStyle?: boolean;
 }
 
 const TextInput = ({
@@ -17,6 +18,7 @@ const TextInput = ({
   error,
   disabled = false,
   onClear,
+  noBlurStyle = false,
   value,
   onFocus,
   onBlur,
@@ -32,13 +34,15 @@ const TextInput = ({
   const getBorderColor = () => {
     if (disabled) return colors.coolNeutral[30];
     if (hasError) return colors.red[30];
-    if (isFocused) return colors.primary[50]; // 포커스일 때만
+    if (isFocused) return colors.primary[50];
+    if (!noBlurStyle && hasValue) return colors.coolNeutral[30]; // 값이 있고 포커스 아닐 때 → disabled 스타일
     return colors.coolNeutral[20];
   };
 
   // 배경 색상 결정
   const getBackgroundColor = () => {
-    if (disabled) return 'transparent';
+    if (disabled) return colors.background.default;
+    if (!noBlurStyle && !isFocused && hasValue) return colors.background.default; // 값이 있고 포커스 아닐 때 → disabled 스타일
     return colors.coolNeutral[10];
   };
 
@@ -66,21 +70,21 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ width: '100%', maxWidth: 334 }}>
+    <View style={{ width: 334 }}>
       {/* 라벨 */}
       <View
         style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          width: '100%',
+          width: 334,
           marginBottom: 12,
         }}
       >
         <Text
           style={{
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
+            ...typography.styles.body2Semibold,
             color: colors.coolNeutral[80],
           }}
         >
@@ -102,7 +106,7 @@ const TextInput = ({
       {/* 입력창 */}
       <View
         style={{
-          width: '100%',
+          width: 334,
           height: 48,
           flexDirection: 'row',
           alignItems: 'center',
@@ -128,15 +132,15 @@ const TextInput = ({
           style={{
             flex: 1,
             fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Regular,
+            ...typography.styles.body2Regular,
             color: colors.coolNeutral[70],
             padding: 0,
           }}
           {...props}
         />
 
-        {/* X 버튼 - 값이 있으면 표시 */}
-        {hasValue && !disabled && (
+        {/* X 버튼 - 포커스 상태이고 값이 있으면 표시 */}
+        {hasValue && !disabled && isFocused && (
           <Pressable
             onPressIn={handleClear}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

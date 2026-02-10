@@ -1,4 +1,5 @@
 import axios from 'axios';
+import apiClient from '@/services/apiClient';
 
 import type {
   ApiResponse,
@@ -7,12 +8,14 @@ import type {
   VehicleBrand,
   VehicleModel,
 } from '@/types/vehicle';
+import type { PrimaryCar } from '@/types/profile';
 
 function getApiBaseUrl() {
   const base = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
   return base.replace(/\/+$/, '');
 }
 
+// 인증 불필요 — 일반 axios 사용
 export async function getVehicleBrands(): Promise<VehicleBrand[]> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
@@ -25,6 +28,7 @@ export async function getVehicleBrands(): Promise<VehicleBrand[]> {
   return data.data ?? [];
 }
 
+// 인증 불필요 — 일반 axios 사용
 export async function getVehicleModels(params: {
   brandId: number;
   keyword?: string;
@@ -43,28 +47,37 @@ export async function getVehicleModels(params: {
   return data.data ?? [];
 }
 
+// 인증 필요 — apiClient 사용
 export async function registerMyCar(params: {
   payload: RegisterMyCarRequest;
   accessToken: string;
 }): Promise<MyCar> {
-  const baseUrl = getApiBaseUrl();
-  if (!baseUrl) {
-    throw new Error('EXPO_PUBLIC_API_BASE_URL 이 설정되어있지 않습니다.');
-  }
-  if (!params.accessToken) {
-    throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
-  }
-
-  const { data } = await axios.post<ApiResponse<MyCar>>(
-    `${baseUrl}/api/v1/my/car`,
+  const { data } = await apiClient.post<ApiResponse<MyCar>>(
+    '/api/v1/cars',
     params.payload,
-    {
-      headers: {
-        Authorization: `Bearer ${params.accessToken}`,
-      },
-    },
   );
 
   return data.data;
 }
 
+// 인증 필요 — apiClient 사용
+export async function fetchMyCars(accessToken: string): Promise<PrimaryCar[]> {
+  const { data } = await apiClient.get<ApiResponse<PrimaryCar[]>>(
+    '/api/v1/cars',
+  );
+
+  return data.data ?? [];
+}
+
+// 인증 필요 — apiClient 사용
+export async function setPrimaryCar(memberCarId: number): Promise<string> {
+  const { data } = await apiClient.patch<ApiResponse<string>>(
+    `/api/v1/cars/${memberCarId}/primary`,
+  );
+  return data.data;
+}
+
+// 인증 필요 — apiClient 사용
+export async function deleteMyCar(memberCarId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/cars/${memberCarId}`);
+}

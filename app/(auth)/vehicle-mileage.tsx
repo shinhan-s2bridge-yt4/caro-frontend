@@ -119,7 +119,7 @@ export default function VehicleMileageScreen() {
                   color: colors.coolNeutral[80],
                 }}
               >
-                현재 주행거리는{'\n'}얼마인가요?
+                현재 주행거리를 {'\n'}알려주세요
               </Text>
             </View>
 
