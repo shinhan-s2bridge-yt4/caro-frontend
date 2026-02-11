@@ -37,7 +37,11 @@ export type TodayDrivingRecordsResponse = {
 export type RouteCoordinate = {
   lat: number;
   lng: number;
-  t: number; // Unix timestamp (ms)
+  timestamp: number; // Unix timestamp (ms)
+};
+
+export type DrivingRecordDetailResponse = DrivingRecord & {
+  routeCoordinates: RouteCoordinate[];
 };
 
 export type CreateDrivingRecordRequest = {

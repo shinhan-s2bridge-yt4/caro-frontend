@@ -530,15 +530,7 @@ export default function CarScreen() {
                       router.push({
                         pathname: '/car-detail',
                         params: {
-                          startDateTime: item.startDateTime,
-                          endDateTime: item.endDateTime,
-                          distanceKm: String(item.distanceKm),
-                          startLocation: item.startLocation,
-                          endLocation: item.endLocation,
-                          vehicleBrandName: item.vehicleBrandName,
-                          vehicleModelName: item.vehicleModelName,
-                          vehicleVariantName: item.vehicleVariantName,
-                          earnedPoints: String(item.earnedPoints),
+                          drivingRecordId: String(item.id),
                         },
                       });
                     }}

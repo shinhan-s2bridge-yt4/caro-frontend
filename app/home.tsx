@@ -181,7 +181,7 @@ export default function HomeScreen() {
 
         const startDate = new Date(orphaned.startTime);
         const endPoint = orphaned.points[orphaned.points.length - 1];
-        const endDate = new Date(endPoint.t);
+        const endDate = new Date(endPoint.timestamp);
 
         // 미전송 데이터 재전송 시도
         await createDrivingRecord({

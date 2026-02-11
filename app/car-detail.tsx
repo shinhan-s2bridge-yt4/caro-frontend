@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { useProfileStore } from '@/stores/profileStore';
 import { useAuthStore } from '@/stores/authStore';
+import { getDrivingRecordDetail } from '@/services/drivingRecordService';
+import type { DrivingRecordDetailResponse } from '@/types/drivingRecord';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import BCarIcon from '../assets/icons/bcar.svg';
@@ -177,15 +179,30 @@ export default function CarDetailScreen() {
   const { accessToken } = useAuthStore();
   const { primaryCar, loadProfile } = useProfileStore();
 
-  const startDateTime = params.startDateTime as string;
-  const endDateTime = params.endDateTime as string;
-  const distanceKm = Number(params.distanceKm);
-  const startLocation = params.startLocation as string;
-  const endLocation = params.endLocation as string;
-  const vehicleBrandName = params.vehicleBrandName as string;
-  const vehicleModelName = params.vehicleModelName as string;
-  const vehicleVariantName = params.vehicleVariantName as string;
-  const earnedPoints = Number(params.earnedPoints);
+  const drivingRecordId = Number(params.drivingRecordId);
+
+  const [detail, setDetail] = useState<DrivingRecordDetailResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    if (!drivingRecordId) return;
+    setIsLoading(true);
+    setError(false);
+    try {
+      const data = await getDrivingRecordDetail(drivingRecordId);
+      setDetail(data);
+    } catch (err) {
+      console.error('운행 기록 상세 조회 실패:', err);
+      setError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [drivingRecordId]);
+
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
 
   useEffect(() => {
     if (accessToken && !primaryCar) {
@@ -193,12 +210,14 @@ export default function CarDetailScreen() {
     }
   }, [accessToken, primaryCar, loadProfile]);
 
-  const dateDisplay = formatDateDisplay(startDateTime);
-  const startTime = formatTime(startDateTime);
-  const endTime = formatTime(endDateTime);
-  const carModel = [vehicleBrandName, vehicleModelName, vehicleVariantName]
-    .filter(Boolean)
-    .join(' ');
+  const dateDisplay = detail ? formatDateDisplay(detail.startDateTime) : '';
+  const startTime = detail ? formatTime(detail.startDateTime) : '';
+  const endTime = detail ? formatTime(detail.endDateTime) : '';
+  const carModel = detail
+    ? [detail.vehicleBrandName, detail.vehicleModelName, detail.vehicleVariantName]
+        .filter(Boolean)
+        .join(' ')
+    : '';
   const plateNumber = primaryCar?.registrationNumber ?? '';
   const carInfoText = plateNumber ? `${carModel}  |  ${plateNumber}` : carModel;
 
@@ -237,6 +256,34 @@ export default function CarDetailScreen() {
         </Text>
       </View>
 
+      {isLoading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary[50]} />
+        </View>
+      ) : error || !detail ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body2Medium,
+              color: colors.coolNeutral[40],
+            }}
+          >
+            운행 기록을 불러올 수 없습니다.
+          </Text>
+          <Pressable onPress={fetchDetail}>
+            <Text
+              style={{
+                fontFamily: typography.fontFamily.pretendard,
+                ...typography.styles.body3Semibold,
+                color: colors.primary[50],
+              }}
+            >
+              다시 시도
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -324,7 +371,7 @@ export default function CarDetailScreen() {
                     color: colors.coolNeutral[40],
                   }}
                 >
-                  {startLocation}
+                  {detail.startLocation}
               </Text>
               </View>
             </View>
@@ -352,14 +399,14 @@ export default function CarDetailScreen() {
                     color: colors.coolNeutral[40],
                   }}
                 >
-                  {endLocation}
+                  {detail.endLocation}
                 </Text>
                 </View>
             </View>
           </View>
 
           {/* 카카오 지도 */}
-          <KakaoMapView startAddress={startLocation} endAddress={endLocation} />
+          <KakaoMapView startAddress={detail.startLocation} endAddress={detail.endLocation} />
 
           {/* 하단 통계 – 두 개의 박스 */}
           <View
@@ -395,12 +442,12 @@ export default function CarDetailScreen() {
                   color: colors.coolNeutral[80],
                 }}
               >
-                {distanceKm.toFixed(1)}km
+                {detail.distanceKm.toFixed(1)}km
               </Text>
             </View>
 
             {/* 적립포인트 (수령 완료된 경우만 표시) */}
-            {earnedPoints > 0 && (
+            {detail.earnedPoints > 0 && (
               <View
                 style={{
                   flex: 1,
@@ -428,7 +475,7 @@ export default function CarDetailScreen() {
                       color: colors.primary[50],
                     }}
                   >
-                    + {earnedPoints.toLocaleString()}
+                    + {detail.earnedPoints.toLocaleString()}
                   </Text>
                   <PointIcon width={18} height={18} />
                 </View>
@@ -437,6 +484,7 @@ export default function CarDetailScreen() {
           </View>
         </View>
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

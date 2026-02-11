@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface RouteCoordinate {
   lat: number;
   lng: number;
-  t: number; // Unix timestamp (ms)
+  timestamp: number; // Unix timestamp (ms)
 }
 
 /** 영속화된 세션 데이터 */
@@ -77,7 +77,7 @@ export async function startSession(): Promise<string> {
 export function addPoint(lat: number, lng: number, timestamp: number): void {
   if (!currentSessionId) return;
 
-  buffer.push({ lat, lng, t: timestamp });
+  buffer.push({ lat, lng, timestamp });
 
   if (buffer.length >= FLUSH_THRESHOLD) {
     flushToStorage().catch(console.warn);

@@ -4,6 +4,7 @@ import type { ApiResponse } from '@/types/vehicle';
 import type {
   DrivingRecordsRequest,
   DrivingRecordsResponse,
+  DrivingRecordDetailResponse,
   DrivingSummary,
   TodayDrivingRecordsResponse,
   CreateDrivingRecordRequest,
@@ -41,6 +42,16 @@ export async function getDrivingSummary(params: {
 export async function getTodayDrivingRecords(): Promise<TodayDrivingRecordsResponse> {
   const { data } = await apiClient.get<ApiResponse<TodayDrivingRecordsResponse>>(
     '/api/v1/driving-records/today',
+  );
+
+  return data.data;
+}
+
+export async function getDrivingRecordDetail(
+  drivingRecordId: number,
+): Promise<DrivingRecordDetailResponse> {
+  const { data } = await apiClient.get<ApiResponse<DrivingRecordDetailResponse>>(
+    `/api/v1/driving-records/${drivingRecordId}`,
   );
 
   return data.data;
