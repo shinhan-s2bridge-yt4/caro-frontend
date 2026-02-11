@@ -1628,8 +1628,22 @@ export default function HomeScreen() {
                         ? RCalIcon
                         : RCouponIcon;
 
+                    const isDriving = item.type === 'DRIVING' && item.drivingDetail?.drivingRecordId;
+
                     return (
-                      <View key={`${item.date}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Pressable
+                        key={`${item.date}-${index}`}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                        disabled={!isDriving}
+                        onPress={() => {
+                          if (isDriving) {
+                            router.push({
+                              pathname: '/car-detail',
+                              params: { drivingRecordId: String(item.drivingDetail!.drivingRecordId) },
+                            });
+                          }
+                        }}
+                      >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                           <View
                             style={{
@@ -1693,7 +1707,7 @@ export default function HomeScreen() {
                         >
                           {formatPointAmount(item.pointChange)}
                         </Text>
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>

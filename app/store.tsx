@@ -279,6 +279,7 @@ function CouponCard({ coupon, onUse }: { coupon: MemberCoupon; onUse?: () => voi
 }
 
 function PointHistoryCard({ item }: { item: PointHistory }) {
+  const router = useRouter();
   const isEarn = item.pointChange >= 0;
   const amountColor = isEarn ? colors.primary[50] : colors.red[50];
 
@@ -296,8 +297,10 @@ function PointHistoryCard({ item }: { item: PointHistory }) {
       ? RcalIcon
       : RcouponIcon;
 
+  const isDriving = item.type === 'DRIVING' && item.drivingDetail?.drivingRecordId;
+
   return (
-    <View
+    <Pressable
       style={{
         width: '100%',
         borderRadius: borderRadius.lg,
@@ -305,6 +308,15 @@ function PointHistoryCard({ item }: { item: PointHistory }) {
         padding: 20,
         flexDirection: 'row',
         gap: 12,
+      }}
+      disabled={!isDriving}
+      onPress={() => {
+        if (isDriving) {
+          router.push({
+            pathname: '/car-detail',
+            params: { drivingRecordId: String(item.drivingDetail!.drivingRecordId) },
+          });
+        }
       }}
     >
       {/* 타입 아이콘 */}
@@ -365,7 +377,7 @@ function PointHistoryCard({ item }: { item: PointHistory }) {
           ) : null}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

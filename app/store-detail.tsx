@@ -5,9 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { Toast } from '@/components/common/Toast';
-import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import { useAuthStore } from '@/stores/authStore';
-import { exchangeCoupon } from '@/services/rewardService';
+import { exchangeCoupon, fetchMemberPoints } from '@/services/rewardService';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import PointIcon from '@/assets/icons/point.svg';
@@ -123,7 +122,7 @@ export default function StoreDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { accessToken } = useAuthStore();
-  const { summary, fetchSummary } = useDrivingRecordStore();
+  const [userPoint, setUserPoint] = useState(0);
 
   // URL 파라미터에서 상품 정보 가져오기
   const productId = params.id as string;
@@ -132,15 +131,18 @@ export default function StoreDetailScreen() {
   const productPrice = Number(params.price) || 11000;
   const productImageUrl = params.imageUrl as string | undefined;
 
-  // API에서 포인트 정보 가져오기
+  // API에서 포인트 정보 가져오기 (리워드 보유 포인트 조회)
+  const loadPoints = () => {
+    fetchMemberPoints()
+      .then((data) => setUserPoint(data.availablePoints))
+      .catch((err) => console.warn('포인트 조회 실패:', err));
+  };
+
   useEffect(() => {
     if (accessToken) {
-      fetchSummary({ accessToken });
+      loadPoints();
     }
-  }, [accessToken, fetchSummary]);
-
-  // 사용자 포인트
-  const userPoint = summary?.totalEarnedPoints ?? 0;
+  }, [accessToken]);
 
   // 포인트 충분 여부
   const hasEnoughPoints = userPoint >= productPrice;
@@ -157,9 +159,7 @@ export default function StoreDetailScreen() {
       setIsExchangeModalOpen(false);
       setIsToastVisible(true);
       // 포인트 갱신
-      if (accessToken) {
-        fetchSummary({ accessToken });
-      }
+      loadPoints();
     } catch (err) {
       setIsExchangeModalOpen(false);
       console.warn('쿠폰 교환 실패:', err);

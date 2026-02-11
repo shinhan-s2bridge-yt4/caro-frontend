@@ -171,6 +171,7 @@ export async function fetchPointEstimate(distanceKm: number): Promise<PointEstim
 // ── 포인트 이력 ──
 
 export type DrivingDetail = {
+  drivingRecordId: number;
   startDateTime: string;
   endDateTime: string;
   distanceKm: number;

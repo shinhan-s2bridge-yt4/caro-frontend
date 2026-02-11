@@ -479,14 +479,20 @@ export default function CoinScreen() {
     }
   }, [selectedTab, calendarSelectedCategory, accessToken, currentYear, currentMonthIndex]);
 
-  // 지출 요약 API 호출 (월 변경 시마다)
+  // 지출 요약 API 호출: 지출 탭이면 전체 기간, 캘린더 탭이면 월별
   useEffect(() => {
     if (accessToken) {
-      const mm = String(currentMonthIndex + 1).padStart(2, '0');
-      const yearMonth = `${currentYear}-${mm}`;
-      fetchSummary({ accessToken, yearMonth });
+      if (selectedTab === 'expense') {
+        // 지출 탭: yearMonth 없이 전체 기간 누적 조회
+        fetchSummary({ accessToken });
+      } else {
+        // 캘린더 탭: 월별 조회
+        const mm = String(currentMonthIndex + 1).padStart(2, '0');
+        const yearMonth = `${currentYear}-${mm}`;
+        fetchSummary({ accessToken, yearMonth });
+      }
     }
-  }, [accessToken, currentYear, currentMonthIndex, fetchSummary]);
+  }, [accessToken, selectedTab, currentYear, currentMonthIndex, fetchSummary]);
 
   // 카테고리 목록 조회 (최초 1회)
   useEffect(() => {
@@ -504,8 +510,16 @@ export default function CoinScreen() {
 
   // 요약 데이터에서 파생된 값들
   const summaryMonthLabel = useMemo(() => {
+    if (selectedTab === 'expense') return '누적';
     return `${currentMonthIndex + 1}월`;
-  }, [currentMonthIndex]);
+  }, [selectedTab, currentMonthIndex]);
+
+  // 지출 탭 누적 기간 라벨 (펼쳤을 때 표시)
+  const summaryPeriodLabel = useMemo(() => {
+    if (!summary?.period?.startDate) return null;
+    const [y, m] = summary.period.startDate.split('-');
+    return `${y}년 ${String(Number(m))}월부터 사용한 금액이에요.`;
+  }, [summary]);
 
   const summaryTotalAmountLabel = useMemo(() => {
     if (!summary) return '0원';
@@ -513,7 +527,7 @@ export default function CoinScreen() {
   }, [summary]);
 
   const summaryDifferenceLabel = useMemo(() => {
-    if (!summary) return null;
+    if (!summary?.totalAmount?.comparison) return null;
     const diff = summary.totalAmount.comparison.difference;
     if (diff === 0) return '전월과 동일해요';
     const absDiff = Math.abs(diff).toLocaleString('ko-KR');
@@ -1578,7 +1592,11 @@ export default function CoinScreen() {
                             const mm = String(currentMonthIndex + 1).padStart(2, '0');
                             const yearMonth = `${currentYear}-${mm}`;
                             fetchExpenses({ accessToken, yearMonth, size: 100 });
-                            fetchSummary({ accessToken, yearMonth });
+                            if (selectedTab === 'expense') {
+                              fetchSummary({ accessToken });
+                            } else {
+                              fetchSummary({ accessToken, yearMonth });
+                            }
                           } else {
                             const errorMsg = useExpenseStore.getState().updateError || '지출 내역 수정에 실패했습니다.';
                             Alert.alert('오류', errorMsg);
@@ -1609,7 +1627,11 @@ export default function CoinScreen() {
                             const mm = String(currentMonthIndex + 1).padStart(2, '0');
                             const yearMonth = `${currentYear}-${mm}`;
                             fetchExpenses({ accessToken, yearMonth, size: 100 });
-                            fetchSummary({ accessToken, yearMonth });
+                            if (selectedTab === 'expense') {
+                              fetchSummary({ accessToken });
+                            } else {
+                              fetchSummary({ accessToken, yearMonth });
+                            }
                             setIsExpenseToastVisible(true);
                           } else {
                             const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
@@ -1930,7 +1952,7 @@ export default function CoinScreen() {
           paddingBottom: 80,
         }}
       >
-        <View style={{ width: '100%', flex: 1 }}>
+        <View style={{ width: '100%', flex: 1, gap: 16 }}>
           <View style={{ width: '100%' }}>
           {/* 상단 헤더 */}
           <View
@@ -1963,17 +1985,23 @@ export default function CoinScreen() {
             </Text>
           </View>
 
-          {/* 탭 + 요약(캘린더 위쪽 배경만 default) */}
+          {/* 탭 + 요약 */}
           <View
             style={{
               width: '100%',
               backgroundColor: colors.background.default,
-              paddingBottom: 32,
-              gap: 32,
             }}
           >
             <CouponTab tabs={tabs} selectedTab={selectedTab} onTabChange={setSelectedTab} />
-
+          </View>
+          <View
+            style={{
+              width: '100%',
+              backgroundColor: selectedTab === 'expense' ? '#FFFFFF' : colors.background.default,
+              paddingTop: 20,
+              paddingBottom: 20
+            }}
+          >
             <View style={{ paddingHorizontal: 20 }}>
               {/* 요약 카드 */}
               <View
@@ -1998,7 +2026,7 @@ export default function CoinScreen() {
                     color: colors.coolNeutral[80],
                   }}
                 >
-                  <Text style={{ color: colors.primary[50] }}>{summaryMonthLabel}</Text> 소비금액
+                  <Text style={{ color: colors.primary[50] }}>{selectedTab === 'expense' && isMonthlySummaryExpanded ? '누적' : summaryMonthLabel}</Text> 소비금액
                 </Text>
 
                 <Pressable
@@ -2032,46 +2060,72 @@ export default function CoinScreen() {
                 )
               ) : (
                 <View style={{ marginTop: 16, gap: 12 }}>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: colors.coolNeutral[30],
-                      opacity: 0.6,
-                    }}
-                  />
+                  {selectedTab === 'expense' && summaryPeriodLabel ? (
+                    <>
+                      <View
+                        style={{
+                          height: 1,
+                          backgroundColor: colors.coolNeutral[30],
+                          opacity: 0.6,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          fontFamily: typography.fontFamily.pretendard,
+                          ...typography.styles.body3Medium,
+                          color: colors.coolNeutral[50],
+                        }}
+                      >
+                        <Text style={{ color: colors.primary[50] }}>
+                          {summary?.period?.startDate ? `${summary.period.startDate.split('-')[0]}년 ${String(Number(summary.period.startDate.split('-')[1]))}월` : ''}
+                        </Text>
+                        {'부터 사용한 금액이에요.'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <View
+                        style={{
+                          height: 1,
+                          backgroundColor: colors.coolNeutral[30],
+                          opacity: 0.6,
+                        }}
+                      />
 
-                  {summaryDifferenceLabel && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body3Medium,
-                        color: colors.coolNeutral[50],
-                      }}
-                    >
-                      전월대비
-                    </Text>
-                    {summary && summary.totalAmount.comparison.difference > 0 ? (
-                      <UpGraphIcon width={12} height={12} />
-                    ) : summary && summary.totalAmount.comparison.difference < 0 ? (
-                      <RGraphIcon width={12} height={12} />
-                    ) : (
-                      <GGraphIcon width={12} height={12} />
-                    )}
-                    <Text
-                      style={{
-                        fontFamily: typography.fontFamily.pretendard,
-                        ...typography.styles.body3Semibold,
-                        color: summary && summary.totalAmount.comparison.difference > 0
-                          ? colors.primary[50]
-                          : summary && summary.totalAmount.comparison.difference < 0
-                            ? colors.red[40]
-                            : colors.coolNeutral[40],
-                      }}
-                    >
-                      {summaryDifferenceLabel}
-                    </Text>
-                  </View>
+                      {summaryDifferenceLabel && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Medium,
+                            color: colors.coolNeutral[50],
+                          }}
+                        >
+                          전월대비
+                        </Text>
+                        {summary?.totalAmount?.comparison?.difference != null && summary.totalAmount.comparison.difference > 0 ? (
+                          <UpGraphIcon width={12} height={12} />
+                        ) : summary?.totalAmount?.comparison?.difference != null && summary.totalAmount.comparison.difference < 0 ? (
+                          <RGraphIcon width={12} height={12} />
+                        ) : (
+                          <GGraphIcon width={12} height={12} />
+                        )}
+                        <Text
+                          style={{
+                            fontFamily: typography.fontFamily.pretendard,
+                            ...typography.styles.body3Semibold,
+                            color: summary?.totalAmount?.comparison?.difference != null && summary.totalAmount.comparison.difference > 0
+                              ? colors.primary[50]
+                              : summary?.totalAmount?.comparison?.difference != null && summary.totalAmount.comparison.difference < 0
+                                ? colors.red[40]
+                                : colors.coolNeutral[40],
+                          }}
+                        >
+                          {summaryDifferenceLabel}
+                        </Text>
+                      </View>
+                      )}
+                    </>
                   )}
 
                   <View style={{ gap: 8 }}>
