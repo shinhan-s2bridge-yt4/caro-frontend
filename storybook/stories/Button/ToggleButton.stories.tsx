@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { useState } from 'react';
 import { ToggleButton, type ToggleOption, type ToggleValue } from '@/components/common/Button/ToggleButton';
 
-import CoinIcon from '../../../assets/icons/coin.svg';
-import BCarIcon from '../../../assets/icons/bcar.svg';
+import CoinIcon from '@/assets/icons/coin.svg';
+import BCarIcon from '@/assets/icons/bcar.svg';
 
 const containerStyle = {
   padding: 20,

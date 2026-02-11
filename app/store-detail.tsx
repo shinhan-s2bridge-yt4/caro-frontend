@@ -9,15 +9,15 @@ import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import { useAuthStore } from '@/stores/authStore';
 import { exchangeCoupon } from '@/services/rewardService';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import PointIcon from '../assets/icons/point.svg';
-import UpIcon from '../assets/icons/UpIcon.svg';
-import DownIcon from '../assets/icons/DownIcon.svg';
-import Coffee1Icon from '../assets/icons/coffee1.svg';
-import OneIcon from '../assets/icons/one.svg';
-import TwoIcon from '../assets/icons/two.svg';
-import ThreeIcon from '../assets/icons/three.svg';
-import FourIcon from '../assets/icons/four.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import PointIcon from '@/assets/icons/point.svg';
+import UpIcon from '@/assets/icons/UpIcon.svg';
+import DownIcon from '@/assets/icons/DownIcon.svg';
+import Coffee1Icon from '@/assets/icons/coffee1.svg';
+import OneIcon from '@/assets/icons/one.svg';
+import TwoIcon from '@/assets/icons/two.svg';
+import ThreeIcon from '@/assets/icons/three.svg';
+import FourIcon from '@/assets/icons/four.svg';
 
 const IMAGE_BASE_URL = 'https://api.caro.today';
 

@@ -28,48 +28,48 @@ import { fetchDashboard } from '@/services/profileService';
 import { syncWidgetData, calculateProgressRatio } from '@/hooks/useWidgetSync';
 import { getSessionRoute, clearSession, getOrphanedSession } from '@/services/routePersistService';
 
-import BRightIcon from '../assets/icons/bright.svg';
-import BoxIcon from '../assets/icons/box.svg';
-import BCarIcon from '../assets/icons/bcar.svg';
-import GCarIcon from '../assets/icons/gcar.svg';
-import CarOcarIcon from '../assets/icons/carocar.svg';
-import RightIcon from '../assets/icons/RightIcon.svg';
-import HandIcon from '../assets/icons/hand.svg';
-import PlayIcon from '../assets/icons/play.svg';
-import PauseIcon from '../assets/icons/pause.svg';
-import BCoinIcon from '../assets/icons/bcoin.svg';
-import XIcon from '../assets/icons/x_icon.svg';
-import PointIcon from '../assets/icons/point.svg';
-import InfoIcon from '../assets/icons/info.svg';
-import BCheckIcon from '../assets/icons/bcheck.svg';
-import GCheckIcon from '../assets/icons/gcheck.svg';
-import WXIcon from '../assets/icons/w_x.svg';
-import CalendarIcon from '../assets/icons/calendar.svg';
-import LogoIcon from '../assets/icons/logo.svg';
-import YCoinIcon from '../assets/icons/ycoin.svg';
-import SirenIcon from '../assets/icons/siren.svg';
-import YPointIcon from '../assets/icons/ypoint.svg';
-import RCarIcon from '../assets/icons/rcar.svg';
-import RCalIcon from '../assets/icons/rcal.svg';
-import RCouponIcon from '../assets/icons/rcoupon.svg';
-import Day1Icon from '../assets/icons/Day1.svg';
-import Day2Icon from '../assets/icons/Day2.svg';
-import Day3Icon from '../assets/icons/Day3.svg';
-import Day4Icon from '../assets/icons/Day4.svg';
-import Day5Icon from '../assets/icons/Day5.svg';
-import Day6Icon from '../assets/icons/Day6.svg';
-import Day7Icon from '../assets/icons/Day7.svg';
-import UpIcon from '../assets/icons/UpIcon.svg';
-import DownIcon from '../assets/icons/DownIcon.svg';
-import B1Icon from '../assets/icons/b1.svg';
-import B2Icon from '../assets/icons/b2.svg';
-import B3Icon from '../assets/icons/b3.svg';
-import B4Icon from '../assets/icons/b4.svg';
-import B5Icon from '../assets/icons/b5.svg';
-import B6Icon from '../assets/icons/b6.svg';
-import B7Icon from '../assets/icons/b7.svg';
-import B8Icon from '../assets/icons/b8.svg';
-import B9Icon from '../assets/icons/b9.svg';
+import BRightIcon from '@/assets/icons/bright.svg';
+import BoxIcon from '@/assets/icons/box.svg';
+import BCarIcon from '@/assets/icons/bcar.svg';
+import GCarIcon from '@/assets/icons/gcar.svg';
+import CarOcarIcon from '@/assets/icons/carocar.svg';
+import RightIcon from '@/assets/icons/RightIcon.svg';
+import HandIcon from '@/assets/icons/hand.svg';
+import PlayIcon from '@/assets/icons/play.svg';
+import PauseIcon from '@/assets/icons/pause.svg';
+import BCoinIcon from '@/assets/icons/bcoin.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
+import PointIcon from '@/assets/icons/point.svg';
+import InfoIcon from '@/assets/icons/info.svg';
+import BCheckIcon from '@/assets/icons/bcheck.svg';
+import GCheckIcon from '@/assets/icons/gcheck.svg';
+import WXIcon from '@/assets/icons/w_x.svg';
+import CalendarIcon from '@/assets/icons/calendar.svg';
+import LogoIcon from '@/assets/icons/logo.svg';
+import YCoinIcon from '@/assets/icons/ycoin.svg';
+import SirenIcon from '@/assets/icons/siren.svg';
+import YPointIcon from '@/assets/icons/ypoint.svg';
+import RCarIcon from '@/assets/icons/rcar.svg';
+import RCalIcon from '@/assets/icons/rcal.svg';
+import RCouponIcon from '@/assets/icons/rcoupon.svg';
+import Day1Icon from '@/assets/icons/Day1.svg';
+import Day2Icon from '@/assets/icons/Day2.svg';
+import Day3Icon from '@/assets/icons/Day3.svg';
+import Day4Icon from '@/assets/icons/Day4.svg';
+import Day5Icon from '@/assets/icons/Day5.svg';
+import Day6Icon from '@/assets/icons/Day6.svg';
+import Day7Icon from '@/assets/icons/Day7.svg';
+import UpIcon from '@/assets/icons/UpIcon.svg';
+import DownIcon from '@/assets/icons/DownIcon.svg';
+import B1Icon from '@/assets/icons/b1.svg';
+import B2Icon from '@/assets/icons/b2.svg';
+import B3Icon from '@/assets/icons/b3.svg';
+import B4Icon from '@/assets/icons/b4.svg';
+import B5Icon from '@/assets/icons/b5.svg';
+import B6Icon from '@/assets/icons/b6.svg';
+import B7Icon from '@/assets/icons/b7.svg';
+import B8Icon from '@/assets/icons/b8.svg';
+import B9Icon from '@/assets/icons/b9.svg';
 
 const DRIVE_NUMBER_ICONS = [B1Icon, B2Icon, B3Icon, B4Icon, B5Icon, B6Icon, B7Icon, B8Icon, B9Icon];
 
@@ -1401,11 +1401,11 @@ export default function HomeScreen() {
             {topToggle === 1 && (
               <>
                 <Image
-                  source={require('../assets/icons/point.gif')}
+                  source={require('@/assets/icons/point.gif')}
                   style={{ width: 0, height: 0, position: 'absolute' }}
                 />
                 <Image
-                  source={require('../assets/icons/coin.gif')}
+                  source={require('@/assets/icons/coin.gif')}
                   style={{ width: 0, height: 0, position: 'absolute' }}
                 />
               </>
@@ -1429,7 +1429,7 @@ export default function HomeScreen() {
                 >
                   {isClaimAnimating ? (
                     <Image
-                      source={require('../assets/icons/point.gif')}
+                      source={require('@/assets/icons/point.gif')}
                       style={{ width: 169, height: 169, marginTop: -18 }}
                     />
                   ) : (
@@ -1763,7 +1763,7 @@ export default function HomeScreen() {
 
             {/* 코인 이미지 */}
             <Image
-              source={require('../assets/icons/coin.gif')}
+              source={require('@/assets/icons/coin.gif')}
               style={{ width: 146, height: 146 }}
             />
 

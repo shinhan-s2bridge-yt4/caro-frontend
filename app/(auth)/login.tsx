@@ -11,7 +11,7 @@ import { loginWithEmail } from '@/services/authService';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
-import LogoIcon from '../../assets/icons/logo.svg';
+import LogoIcon from '@/assets/icons/logo.svg';
 
 export default function LoginScreen() {
   const router = useRouter();

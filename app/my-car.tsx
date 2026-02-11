@@ -9,9 +9,9 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import { deleteMyCar, setPrimaryCar } from '@/services/vehicleService';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import BCheckIcon from '../assets/icons/bcheck.svg';
-import GCheckIcon from '../assets/icons/gcheck.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import BCheckIcon from '@/assets/icons/bcheck.svg';
+import GCheckIcon from '@/assets/icons/gcheck.svg';
 
 export default function MyCarScreen() {
   const router = useRouter();

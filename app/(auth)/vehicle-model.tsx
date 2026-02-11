@@ -16,7 +16,7 @@ import { getVehicleModels } from '@/services/vehicleService';
 import type { VehicleModel } from '@/types/vehicle';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 
-import ArrowLeftIcon from '../../assets/icons/arrow-left.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 

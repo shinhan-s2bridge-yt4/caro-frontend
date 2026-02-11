@@ -9,10 +9,10 @@ module.exports = (config) => ({
     $accent: "#4880ED",
   },
   images: {
-    bbcar: "../../assets/icons/bbcar.png",
-    bshopping: "../../assets/icons/bshopping.png",
-    bcoupon: "../../assets/icons/bcoupon.png",
-    bcoin: "../../assets/icons/bcoin.png",
+    bbcar: "../../src/assets/icons/bbcar.png",
+    bshopping: "../../src/assets/icons/bshopping.png",
+    bcoupon: "../../src/assets/icons/bcoupon.png",
+    bcoin: "../../src/assets/icons/bcoin.png",
   },
   entitlements: {
     "com.apple.security.application-groups":

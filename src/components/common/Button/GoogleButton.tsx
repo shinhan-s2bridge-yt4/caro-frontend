@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import { typography, colors, borderRadius } from '@/theme';
-import GoogleIcon from '../../../../assets/icons/google.svg';
+import GoogleIcon from '@/assets/icons/google.svg';
 
 export const GoogleButton = () => {
   return (

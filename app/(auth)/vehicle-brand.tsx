@@ -16,7 +16,7 @@ import { CarButton } from '@/components/common/Button/CarButton';
 import { MainButton } from '@/components/common/Button/MainButton';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 
-import ArrowLeftIcon from '../../assets/icons/arrow-left.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 

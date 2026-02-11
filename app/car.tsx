@@ -9,11 +9,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import type { DrivingRecord } from '@/types/drivingRecord';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import SearchIcon from '../assets/icons/search.svg';
-import GCarIcon from '../assets/icons/gcar.svg';
-import XIcon from '../assets/icons/x_icon.svg';
-import PointIcon from '../assets/icons/point.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import SearchIcon from '@/assets/icons/search.svg';
+import GCarIcon from '@/assets/icons/gcar.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
+import PointIcon from '@/assets/icons/point.svg';
 
 const TAG_MIN_WIDTH = 44;
 const DATE_WHEEL_ITEM_HEIGHT = 44;

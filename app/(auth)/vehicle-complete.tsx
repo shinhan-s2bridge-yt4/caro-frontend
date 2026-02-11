@@ -12,7 +12,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 
-import ArrowLeftIcon from '../../assets/icons/arrow-left.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 

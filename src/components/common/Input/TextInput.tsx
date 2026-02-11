@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { TextInput as RNTextInput, Pressable, Text, TextInputProps, View } from 'react-native';
 import { colors, typography, borderRadius } from '@/theme';
-import XIcon from '../../../../assets/icons/x_icon.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
 
 interface CustomTextInputProps extends TextInputProps {
   label: string;

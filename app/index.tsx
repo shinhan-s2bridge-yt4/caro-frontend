@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
-import LogoIcon from '../assets/icons/logo.svg';
+import LogoIcon from '@/assets/icons/logo.svg';
 
 export default function Splash() {
   const router = useRouter();

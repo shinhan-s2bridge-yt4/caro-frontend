@@ -8,9 +8,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { getDrivingRecordDetail } from '@/services/drivingRecordService';
 import type { DrivingRecordDetailResponse } from '@/types/drivingRecord';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import BCarIcon from '../assets/icons/bcar.svg';
-import PointIcon from '../assets/icons/point.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import BCarIcon from '@/assets/icons/bcar.svg';
+import PointIcon from '@/assets/icons/point.svg';
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 

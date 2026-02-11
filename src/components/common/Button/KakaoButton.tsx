@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import { typography, colors, borderRadius } from '@/theme';
-import KakaoIcon from '../../../../assets/icons/kakao.svg';
+import KakaoIcon from '@/assets/icons/kakao.svg';
 
 export const KakaoButton = () => {
   return (

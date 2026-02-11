@@ -20,7 +20,7 @@ import EmailInput from '../../src/components/common/Input/EmailInput';
 import PasswordInput from '../../src/components/common/Input/PasswordInput';
 import { MainButton } from '../../src/components/common/Button/MainButton';
 
-import ArrowLeftIcon from '../../assets/icons/arrow-left.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 
 const EMAIL_REGEX =
   /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;

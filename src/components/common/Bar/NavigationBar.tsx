@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { colors, typography } from '@/theme';
 // SVG 아이콘 임포트
-import HomeIcon from '../../../../assets/icons/home.svg';
-import CarIcon from '../../../../assets/icons/car.svg';
-import CoinIcon from '../../../../assets/icons/coin.svg';
-import StoreIcon from '../../../../assets/icons/store.svg';
-import UserIcon from '../../../../assets/icons/user.svg';
-import AHomeIcon from '../../../../assets/icons/a-home.svg';
-import ACarIcon from '../../../../assets/icons/a-car.svg';
-import ACoinIcon from '../../../../assets/icons/a-coin.svg';
-import AStoreIcon from '../../../../assets/icons/a-store.svg';
-import AUserIcon from '../../../../assets/icons/a-user.svg';
+import HomeIcon from '@/assets/icons/home.svg';
+import CarIcon from '@/assets/icons/car.svg';
+import CoinIcon from '@/assets/icons/coin.svg';
+import StoreIcon from '@/assets/icons/store.svg';
+import UserIcon from '@/assets/icons/user.svg';
+import AHomeIcon from '@/assets/icons/a-home.svg';
+import ACarIcon from '@/assets/icons/a-car.svg';
+import ACoinIcon from '@/assets/icons/a-coin.svg';
+import AStoreIcon from '@/assets/icons/a-store.svg';
+import AUserIcon from '@/assets/icons/a-user.svg';
 
 interface NavigationBarProps {
   active?: 'home' | 'car' | 'coin' | 'store' | 'user';

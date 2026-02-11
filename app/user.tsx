@@ -12,14 +12,14 @@ import { useMyCarStore } from '@/stores/myCarStore';
 import { fetchDashboard, type DashboardData } from '@/services/profileService';
 import TextInput from '@/components/common/Input/TextInput';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import PencilIcon from '../assets/icons/pencil.svg';
-import GRightIcon from '../assets/icons/GRightIcon.svg';
-import XIcon from '../assets/icons/x_icon.svg';
-import DownIcon from '../assets/icons/DownIcon.svg';
-import PlusIcon from '../assets/icons/plus.svg';
-import BCheckIcon from '../assets/icons/bcheck.svg';
-import PointIcon from '../assets/icons/point.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import PencilIcon from '@/assets/icons/pencil.svg';
+import GRightIcon from '@/assets/icons/GRightIcon.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
+import DownIcon from '@/assets/icons/DownIcon.svg';
+import PlusIcon from '@/assets/icons/plus.svg';
+import BCheckIcon from '@/assets/icons/bcheck.svg';
+import PointIcon from '@/assets/icons/point.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 

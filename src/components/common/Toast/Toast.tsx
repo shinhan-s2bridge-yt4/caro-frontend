@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, typography, borderRadius } from '@/theme';
-import SmileIcon from '../../../../assets/icons/smile.svg';
+import SmileIcon from '@/assets/icons/smile.svg';
 
 interface ToastProps {
   /** 토스트에 표시할 메시지 */

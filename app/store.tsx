@@ -29,21 +29,21 @@ import {
   type MemberCouponDetail,
 } from '@/services/rewardService';
 
-import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
-import DownIcon from '../assets/icons/DownIcon.svg';
-import WDownIcon from '../assets/icons/wdown.svg';
-import UpIcon from '../assets/icons/UpIcon.svg';
-import XIcon from '../assets/icons/x_icon.svg';
-import BlueDotIcon from '../assets/icons/bluedot.svg';
-import PointIcon from '../assets/icons/point.svg';
-import Coffee1Icon from '../assets/icons/coffee1.svg';
-import CalendarIcon from '../assets/icons/calendar.svg';
+import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
+import DownIcon from '@/assets/icons/DownIcon.svg';
+import WDownIcon from '@/assets/icons/wdown.svg';
+import UpIcon from '@/assets/icons/UpIcon.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
+import BlueDotIcon from '@/assets/icons/bluedot.svg';
+import PointIcon from '@/assets/icons/point.svg';
+import Coffee1Icon from '@/assets/icons/coffee1.svg';
+import CalendarIcon from '@/assets/icons/calendar.svg';
 
-import GcarIcon from '../assets/icons/gcar.svg';
-import RcarIcon from '../assets/icons/rcar.svg';
-import RcalIcon from '../assets/icons/rcal.svg';
-import RcouponIcon from '../assets/icons/rcoupon.svg';
-import WupIcon from '../assets/icons/wup.svg';
+import GcarIcon from '@/assets/icons/gcar.svg';
+import RcarIcon from '@/assets/icons/rcar.svg';
+import RcalIcon from '@/assets/icons/rcal.svg';
+import RcouponIcon from '@/assets/icons/rcoupon.svg';
+import WupIcon from '@/assets/icons/wup.svg';
 
 const SCREEN_MAX_WIDTH = 375;
 

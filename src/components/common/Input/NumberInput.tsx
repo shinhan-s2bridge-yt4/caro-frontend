@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { colors, typography, borderRadius } from '@/theme';
-import XIcon from '../../../../assets/icons/x_icon.svg';
+import XIcon from '@/assets/icons/x_icon.svg';
 import { formatNumberWithComma } from '@/utils/number';
 
 interface CustomNumberInputProps extends TextInputProps {
