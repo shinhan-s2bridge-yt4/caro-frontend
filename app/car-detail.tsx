@@ -63,7 +63,12 @@ function DetailTag({ label }: { label: '출발' | '도착' }) {
  *  카카오 SDK 도메인 검증 통과
  * ────────────────────────────────────────────────
  */
-function buildNativeMapHtml(kakaoKey: string, startAddr: string, endAddr: string) {
+function buildNativeMapHtml(
+  kakaoKey: string,
+  startAddr: string,
+  endAddr: string,
+  coordsJson: string,
+) {
   return `<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
@@ -72,27 +77,41 @@ function buildNativeMapHtml(kakaoKey: string, startAddr: string, endAddr: string
 </head><body>
 <div id="map"></div>
 <script>
+var COORDS=${coordsJson};
 var s=document.createElement('script');
 s.src='https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&libraries=services&autoload=false';
 s.onload=function(){
   kakao.maps.load(function(){
     var map=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(37.5665,126.978),level:5});
-    var gc=new kakao.maps.services.Geocoder(),bd=new kakao.maps.LatLngBounds(),n=0;
+    var bd=new kakao.maps.LatLngBounds();
     function mi(c){
       var sv='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44"><path d="M16 0C7.163 0 0 7.163 0 16c0 12 16 28 16 28s16-16 16-28C32 7.163 24.837 0 16 0z" fill="'+c+'"/><circle cx="16" cy="16" r="7" fill="white"/></svg>';
       return new kakao.maps.MarkerImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sv),new kakao.maps.Size(32,44),{offset:new kakao.maps.Point(16,44)});
     }
-    function pm(a,c){gc.addressSearch(a,function(r,st){
-      if(st===kakao.maps.services.Status.OK){
-        var co=new kakao.maps.LatLng(r[0].y,r[0].x);
-        new kakao.maps.Marker({map:map,position:co,image:mi(c)});
-        bd.extend(co);n++;
-        if(n>=2)map.setBounds(bd,80,80,80,80);
+    if(COORDS&&COORDS.length>=2){
+      var path=[];
+      for(var i=0;i<COORDS.length;i++){
+        var ll=new kakao.maps.LatLng(COORDS[i].lat,COORDS[i].lng);
+        path.push(ll);bd.extend(ll);
       }
-    });}
-    pm('${startAddr}','#4880ED');
-    pm('${endAddr}','#FF8585');
-    setTimeout(function(){if(n===1)map.setBounds(bd,80,80,80,80);},3000);
+      new kakao.maps.Polyline({map:map,path:path,strokeWeight:4,strokeColor:'#4880ED',strokeOpacity:0.8,strokeStyle:'solid'});
+      new kakao.maps.Marker({map:map,position:path[0],image:mi('#4880ED')});
+      new kakao.maps.Marker({map:map,position:path[path.length-1],image:mi('#FF8585')});
+      map.setBounds(bd,80,80,80,80);
+    }else{
+      var gc=new kakao.maps.services.Geocoder(),n=0;
+      function pm(a,c){gc.addressSearch(a,function(r,st){
+        if(st===kakao.maps.services.Status.OK){
+          var co=new kakao.maps.LatLng(r[0].y,r[0].x);
+          new kakao.maps.Marker({map:map,position:co,image:mi(c)});
+          bd.extend(co);n++;
+          if(n>=2)map.setBounds(bd,80,80,80,80);
+        }
+      });}
+      pm('${startAddr}','#4880ED');
+      pm('${endAddr}','#FF8585');
+      setTimeout(function(){if(n===1)map.setBounds(bd,80,80,80,80);},3000);
+    }
   });
 };
 s.onerror=function(){
@@ -113,18 +132,24 @@ document.head.appendChild(s);
 function KakaoMapView({
   startAddress,
   endAddress,
+  routeCoordinates,
 }: {
   startAddress: string;
   endAddress: string;
+  routeCoordinates?: { lat: number; lng: number }[];
 }) {
   const kakaoKey = process.env.EXPO_PUBLIC_KAKAO_MAP_KEY || '';
+  const coordsJson = JSON.stringify(
+    routeCoordinates?.map(({ lat, lng }) => ({ lat, lng })) ?? [],
+  );
 
   // --- 웹: public/kakao-map.html을 iframe으로 로드 ---
   if (Platform.OS === 'web') {
     const mapUrl =
       `/kakao-map.html?key=${encodeURIComponent(kakaoKey)}` +
       `&start=${encodeURIComponent(startAddress)}` +
-      `&end=${encodeURIComponent(endAddress)}`;
+      `&end=${encodeURIComponent(endAddress)}` +
+      `&coords=${encodeURIComponent(coordsJson)}`;
 
     return (
       <View
@@ -148,7 +173,7 @@ function KakaoMapView({
   const WebView = require('react-native-webview').default;
   const escapedStart = startAddress.replace(/'/g, "\\'").replace(/\n/g, ' ');
   const escapedEnd = endAddress.replace(/'/g, "\\'").replace(/\n/g, ' ');
-  const html = buildNativeMapHtml(kakaoKey, escapedStart, escapedEnd);
+  const html = buildNativeMapHtml(kakaoKey, escapedStart, escapedEnd, coordsJson);
 
   return (
     <View
@@ -406,7 +431,11 @@ export default function CarDetailScreen() {
           </View>
 
           {/* 카카오 지도 */}
-          <KakaoMapView startAddress={detail.startLocation} endAddress={detail.endLocation} />
+          <KakaoMapView
+            startAddress={detail.startLocation}
+            endAddress={detail.endLocation}
+            routeCoordinates={detail.routeCoordinates}
+          />
 
           {/* 하단 통계 – 두 개의 박스 */}
           <View

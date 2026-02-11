@@ -18,6 +18,9 @@
   var appKey = params.get('key') || '';
   var startAddr = params.get('start') || '';
   var endAddr = params.get('end') || '';
+  var coordsRaw = params.get('coords') || '[]';
+  var COORDS = [];
+  try { COORDS = JSON.parse(coordsRaw); } catch(e) { COORDS = []; }
 
   // SDK 로드
   var script = document.createElement('script');
@@ -30,9 +33,7 @@
         level: 5
       });
 
-      var geocoder = new kakao.maps.services.Geocoder();
       var bounds = new kakao.maps.LatLngBounds();
-      var count = 0;
 
       function makeSvgMarker(color) {
         var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44">'
@@ -46,33 +47,58 @@
         );
       }
 
-      function placePin(address, color) {
-        geocoder.addressSearch(address, function(result, status) {
-          if (status === kakao.maps.services.Status.OK) {
-            var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
-            new kakao.maps.Marker({
-              map: map,
-              position: coords,
-              image: makeSvgMarker(color)
-            });
-            bounds.extend(coords);
-            count++;
-            if (count >= 2) {
-              map.setBounds(bounds, 80, 80, 80, 80);
-            }
-          }
-        });
-      }
-
-      if (startAddr) placePin(startAddr, '#4880ED');
-      if (endAddr) placePin(endAddr, '#FF8585');
-
-      // 마커가 하나만 찍힌 경우 대비
-      setTimeout(function() {
-        if (count === 1) {
-          map.setBounds(bounds, 80, 80, 80, 80);
+      // GPS 좌표가 2개 이상이면 폴리라인 + 좌표 기반 마커
+      if (COORDS && COORDS.length >= 2) {
+        var path = [];
+        for (var i = 0; i < COORDS.length; i++) {
+          var ll = new kakao.maps.LatLng(COORDS[i].lat, COORDS[i].lng);
+          path.push(ll);
+          bounds.extend(ll);
         }
-      }, 3000);
+        new kakao.maps.Polyline({
+          map: map,
+          path: path,
+          strokeWeight: 4,
+          strokeColor: '#4880ED',
+          strokeOpacity: 0.8,
+          strokeStyle: 'solid'
+        });
+        new kakao.maps.Marker({ map: map, position: path[0], image: makeSvgMarker('#4880ED') });
+        new kakao.maps.Marker({ map: map, position: path[path.length - 1], image: makeSvgMarker('#FF8585') });
+        map.setBounds(bounds, 80, 80, 80, 80);
+      } else {
+        // 좌표 없으면 기존 주소 기반 마커
+        var geocoder = new kakao.maps.services.Geocoder();
+        var count = 0;
+
+        function placePin(address, color) {
+          geocoder.addressSearch(address, function(result, status) {
+            if (status === kakao.maps.services.Status.OK) {
+              var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+              new kakao.maps.Marker({
+                map: map,
+                position: coords,
+                image: makeSvgMarker(color)
+              });
+              bounds.extend(coords);
+              count++;
+              if (count >= 2) {
+                map.setBounds(bounds, 80, 80, 80, 80);
+              }
+            }
+          });
+        }
+
+        if (startAddr) placePin(startAddr, '#4880ED');
+        if (endAddr) placePin(endAddr, '#FF8585');
+
+        // 마커가 하나만 찍힌 경우 대비
+        setTimeout(function() {
+          if (count === 1) {
+            map.setBounds(bounds, 80, 80, 80, 80);
+          }
+        }, 3000);
+      }
     });
   };
   script.onerror = function() {

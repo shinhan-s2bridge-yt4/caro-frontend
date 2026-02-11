@@ -50,22 +50,27 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   return (
     <View
       style={{
-        flexDirection: 'row',
         width: '100%',
-        maxWidth: 375,
-        height: 75,
         backgroundColor: colors.coolNeutral[10],
-        alignItems: 'flex-start',
-        alignSelf: 'center',
-        paddingTop: 8,
-        paddingBottom: 12,
-        paddingHorizontal: 16,
-        gap: 8,
+        alignItems: 'center',
         // showBorder가 true일 때만 보더 표시
         ...(showBorder && {
           borderTopWidth: 0.5,
           borderTopColor: colors.coolNeutral[40],
         }),
+      }}
+    >
+    <View
+      style={{
+        flexDirection: 'row',
+        width: '100%',
+        maxWidth: 375,
+        height: 75,
+        alignItems: 'flex-start',
+        paddingTop: 8,
+        paddingBottom: 12,
+        paddingHorizontal: 16,
+        gap: 8,
       }}
     >
       {tabs.map((tab) => {
@@ -115,6 +120,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           </Pressable>
         );
       })}
+    </View>
     </View>
   );
 };
