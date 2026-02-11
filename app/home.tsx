@@ -1,4 +1,5 @@
 import { Platform, Pressable, View, Text, Modal, ActivityIndicator, ScrollView, Switch, Image } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
@@ -32,7 +33,6 @@ import BRightIcon from '@/assets/icons/bright.svg';
 import BoxIcon from '@/assets/icons/box.svg';
 import BCarIcon from '@/assets/icons/bcar.svg';
 import GCarIcon from '@/assets/icons/gcar.svg';
-import CarOcarIcon from '@/assets/icons/carocar.svg';
 import RightIcon from '@/assets/icons/RightIcon.svg';
 import HandIcon from '@/assets/icons/hand.svg';
 import PlayIcon from '@/assets/icons/play.svg';
@@ -221,6 +221,7 @@ export default function HomeScreen() {
         ]);
         const distance = dashboardData.totalDistanceKm;
         const points = pendingData.totalPendingPoints;
+        setPendingPoints(points);
         syncWidgetData({
           totalDistanceKm: distance,
           pendingPoints: points,
@@ -572,14 +573,29 @@ export default function HomeScreen() {
             }}
           >
             <LogoIcon height={33} width={85} />
-            <ToggleButton
-              options={toggleOptions}
-              value={topToggle}
-              onChange={(v) => setTopToggle(v)}
-              height={34}
-              containerStyle={topToggle === 1 ? { backgroundColor: '#FEDE51' } : undefined}
-              activeTextColor={topToggle === 1 ? '#FEDE51' : undefined}
-            />
+            <View>
+              <ToggleButton
+                options={toggleOptions}
+                value={topToggle}
+                onChange={(v) => setTopToggle(v)}
+                height={34}
+                containerStyle={topToggle === 1 ? { backgroundColor: '#FEDE51' } : undefined}
+                activeTextColor={topToggle === 1 ? '#FEDE51' : undefined}
+              />
+              {topToggle === 0 && pendingPoints > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -3,
+                    right: 5,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: colors.red[50],
+                  }}
+                />
+              )}
+            </View>
           </View>
 
           {/* Content (from Greeting) */}
@@ -1051,8 +1067,14 @@ export default function HomeScreen() {
                     </View>
                   </View>
 
-                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                    <CarOcarIcon width={110} height={110} />
+                  <View style={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <ExpoImage
+                      source={require('@/assets/icons/homecar.gif')}
+                      style={{ width: 150, height: 110 }}
+                      cachePolicy="memory-disk"
+                      priority="high"
+                      autoplay={true}
+                    />
                   </View>
                 </View>
 

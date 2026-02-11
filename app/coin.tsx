@@ -9,6 +9,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,7 +61,7 @@ import ExpendablesIcon from '@/assets/icons/expendables.svg';
 
 
 const SCREEN_MAX_WIDTH = 375;
-const CALENDAR_CELL_SIZE = 46.141;
+const CALENDAR_HORIZONTAL_PADDING = 20; // 캘린더 컨테이너 좌우 패딩
 const DATE_WHEEL_ITEM_HEIGHT = 44;
 const DATE_WHEEL_HEIGHT = 220;
 const DATE_WHEEL_PADDING = (DATE_WHEEL_HEIGHT - DATE_WHEEL_ITEM_HEIGHT) / 2;
@@ -147,6 +148,8 @@ function parseKoreanDateToIso(koreanDate: string): string {
 
 export default function CoinScreen() {
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+  const calendarCellSize = Math.floor((screenWidth - CALENDAR_HORIZONTAL_PADDING * 2) / 7);
   const accessToken = useAuthStore((s) => s.accessToken);
   const { primaryCar } = useProfileStore();
   const { cars: myCars, isLoading: isCarsLoading, loadMyCars } = useMyCarStore();
@@ -1952,7 +1955,7 @@ export default function CoinScreen() {
           paddingBottom: 80,
         }}
       >
-        <View style={{ width: '100%', flex: 1, gap: 16 }}>
+        <View style={{ width: '100%', flex: 1, gap: 32 }}>
           <View style={{ width: '100%' }}>
           {/* 상단 헤더 */}
           <View
@@ -2266,9 +2269,9 @@ export default function CoinScreen() {
 
                   <View style={{ gap: 12 }}>
                     {/* 요일 */}
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <View style={{ flexDirection: 'row' }}>
                       {WEEKDAYS.map((w) => (
-                        <View key={w} style={{ flex: 1, alignItems: 'center' }}>
+                        <View key={w} style={{ width: calendarCellSize, alignItems: 'center' }}>
                           <Text
                             style={{
                               fontFamily: typography.fontFamily.pretendard,
@@ -2288,7 +2291,6 @@ export default function CoinScreen() {
                         flexDirection: 'row',
                         flexWrap: 'wrap',
                         rowGap: 2,
-                        justifyContent: 'space-between',
                       }}
                     >
                       {calendarCells.map((cell) => {
@@ -2307,8 +2309,8 @@ export default function CoinScreen() {
                               }
                             }}
                             style={{
-                              width: CALENDAR_CELL_SIZE,
-                              height: CALENDAR_CELL_SIZE,
+                              width: calendarCellSize,
+                              height: calendarCellSize,
                               alignItems: 'center',
                               justifyContent: 'flex-start',
                               paddingTop: 4,

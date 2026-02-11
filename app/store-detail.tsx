@@ -160,9 +160,11 @@ export default function StoreDetailScreen() {
       setIsToastVisible(true);
       // 포인트 갱신
       loadPoints();
-    } catch (err) {
+    } catch (err: any) {
       setIsExchangeModalOpen(false);
       console.warn('쿠폰 교환 실패:', err);
+      console.warn('응답 데이터:', err?.response?.data);
+      console.warn('요청 데이터:', err?.config?.data);
     } finally {
       setIsExchanging(false);
     }
