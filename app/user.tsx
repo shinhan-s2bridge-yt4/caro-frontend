@@ -10,6 +10,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import { fetchDashboard, type DashboardData } from '@/services/profileService';
+import { getTabRoute } from '@/utils/navigation';
 import TextInput from '@/components/common/Input/TextInput';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
@@ -449,19 +450,7 @@ export default function UserScreen() {
         <NavigationBar
           active="user"
           showBorder
-          onPress={(tab) => {
-            const to =
-              tab === 'home'
-                ? '/home'
-                : tab === 'car'
-                  ? '/car'
-                  : tab === 'coin'
-                    ? '/coin'
-                    : tab === 'store'
-                      ? '/store'
-                      : '/user';
-            router.push(to);
-          }}
+          onPress={(tab) => router.push(getTabRoute(tab))}
         />
       </View>
 

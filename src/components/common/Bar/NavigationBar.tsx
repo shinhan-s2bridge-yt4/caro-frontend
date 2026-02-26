@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { colors, typography } from '@/theme';
+import type { NavigationTab } from '@/utils/navigation';
 // SVG 아이콘 임포트
 import HomeIcon from '@/assets/icons/home.svg';
 import CarIcon from '@/assets/icons/car.svg';
@@ -14,8 +15,8 @@ import AStoreIcon from '@/assets/icons/a-store.svg';
 import AUserIcon from '@/assets/icons/a-user.svg';
 
 interface NavigationBarProps {
-  active?: 'home' | 'car' | 'coin' | 'store' | 'user';
-  onPress?: (tab: 'home' | 'car' | 'coin' | 'store' | 'user') => void;
+  active?: NavigationTab;
+  onPress?: (tab: NavigationTab) => void;
   showBorder?: boolean; // 보더 표시 여부
 }
 
@@ -25,7 +26,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   showBorder = false, // 기본값 false
 }) => {
   // 내부 상태 추가
-  const [internalActive, setInternalActive] = useState<'home' | 'car' | 'coin' | 'store' | 'user'>('home');
+  const [internalActive, setInternalActive] = useState<NavigationTab>('home');
   
   // controlled vs uncontrolled
   const active = controlledActive ?? internalActive;
@@ -38,7 +39,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
     { key: 'user', label: '마이페이지', Icon: UserIcon, activeIcon: AUserIcon },
   ] as const;
 
-  const handlePress = (tab: 'home' | 'car' | 'coin' | 'store' | 'user') => {
+  const handlePress = (tab: NavigationTab) => {
     // 외부에서 제어하지 않는 경우 내부 상태 업데이트
     if (controlledActive === undefined) {
       setInternalActive(tab);

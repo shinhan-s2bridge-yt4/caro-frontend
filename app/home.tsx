@@ -29,6 +29,7 @@ import { fetchDashboard } from '@/services/profileService';
 import { syncWidgetData, calculateProgressRatio } from '@/hooks/useWidgetSync';
 import { getSessionRoute, clearSession, getOrphanedSession } from '@/services/routePersistService';
 import { formatDateOnly, formatTimeHHMM } from '@/utils/date';
+import { getTabRoute } from '@/utils/navigation';
 
 import BRightIcon from '@/assets/icons/bright.svg';
 import BoxIcon from '@/assets/icons/box.svg';
@@ -1733,19 +1734,7 @@ export default function HomeScreen() {
         <NavigationBar
           active="home"
           showBorder
-          onPress={(tab) => {
-            const to =
-              tab === 'home'
-                ? '/home'
-                : tab === 'car'
-                  ? '/car'
-                  : tab === 'coin'
-                    ? '/coin'
-                    : tab === 'store'
-                      ? '/store'
-                      : '/user';
-            router.push(to);
-          }}
+          onPress={(tab) => router.push(getTabRoute(tab))}
         />
       </View>
 

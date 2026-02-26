@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import type { DrivingRecord } from '@/types/drivingRecord';
 import { formatDateWithDay, formatTimeHHMM } from '@/utils/date';
+import { getTabRoute } from '@/utils/navigation';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import SearchIcon from '@/assets/icons/search.svg';
@@ -750,19 +751,7 @@ export default function CarScreen() {
         <NavigationBar
           active="car"
           showBorder
-          onPress={(tab) => {
-            const to =
-              tab === 'home'
-                ? '/home'
-                : tab === 'car'
-                  ? '/car'
-                  : tab === 'coin'
-                    ? '/coin'
-                    : tab === 'store'
-                      ? '/store'
-                      : '/user';
-            router.push(to);
-          }}
+          onPress={(tab) => router.push(getTabRoute(tab))}
         />
       </View>
     </SafeAreaView>

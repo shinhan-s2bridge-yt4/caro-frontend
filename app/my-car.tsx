@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import { deleteMyCar, setPrimaryCar } from '@/services/vehicleService';
+import { getTabRoute } from '@/utils/navigation';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import BCheckIcon from '@/assets/icons/bcheck.svg';
@@ -284,19 +285,7 @@ export default function MyCarScreen() {
         <NavigationBar
           active="user"
           showBorder
-          onPress={(tab) => {
-            const to =
-              tab === 'home'
-                ? '/home'
-                : tab === 'car'
-                  ? '/car'
-                  : tab === 'coin'
-                    ? '/coin'
-                    : tab === 'store'
-                      ? '/store'
-                      : '/user';
-            router.push(to);
-          }}
+          onPress={(tab) => router.push(getTabRoute(tab))}
         />
       </View>
 

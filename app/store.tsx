@@ -33,6 +33,7 @@ import {
   formatDateKoreanWithUntil,
   formatDateOnly,
 } from '@/utils/date';
+import { getTabRoute } from '@/utils/navigation';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import DownIcon from '@/assets/icons/DownIcon.svg';
@@ -1383,19 +1384,7 @@ export default function StoreScreen() {
       <NavigationBar
         active="store"
         showBorder
-        onPress={(tab) => {
-          const to =
-            tab === 'home'
-              ? '/home'
-              : tab === 'car'
-                ? '/car'
-                : tab === 'coin'
-                  ? '/coin'
-                  : tab === 'store'
-                    ? '/store'
-                    : '/user';
-          router.push(to);
-        }}
+        onPress={(tab) => router.push(getTabRoute(tab))}
       />
     </SafeAreaView>
   );

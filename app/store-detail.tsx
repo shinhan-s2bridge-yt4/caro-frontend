@@ -7,6 +7,7 @@ import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { Toast } from '@/components/common/Toast';
 import { useAuthStore } from '@/stores/authStore';
 import { exchangeCoupon, fetchMemberPoints } from '@/services/rewardService';
+import { getTabRoute } from '@/utils/navigation';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import PointIcon from '@/assets/icons/point.svg';
@@ -479,19 +480,7 @@ export default function StoreDetailScreen() {
       <NavigationBar
         active="store"
         showBorder
-        onPress={(tab) => {
-          const to =
-            tab === 'home'
-              ? '/home'
-              : tab === 'car'
-                ? '/car'
-                : tab === 'coin'
-                  ? '/coin'
-                  : tab === 'store'
-                    ? '/store'
-                    : '/user';
-          router.push(to);
-        }}
+        onPress={(tab) => router.push(getTabRoute(tab))}
       />
     </SafeAreaView>
   );

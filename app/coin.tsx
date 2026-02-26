@@ -30,6 +30,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useMyCarStore } from '@/stores/myCarStore';
 import type { Expense, ExpenseCategory } from '@/types/expense';
 import type { PrimaryCar } from '@/types/profile';
+import { getTabRoute } from '@/utils/navigation';
 
 import { performOcr } from '@/services/ocrService';
 
@@ -3061,19 +3062,7 @@ export default function CoinScreen() {
           <NavigationBar
             active="coin"
             showBorder
-            onPress={(tab) => {
-              const to =
-                tab === 'home'
-                  ? '/home'
-                  : tab === 'car'
-                    ? '/car'
-                    : tab === 'coin'
-                      ? '/coin'
-                      : tab === 'store'
-                        ? '/store'
-                        : '/user';
-              router.push(to);
-            }}
+            onPress={(tab) => router.push(getTabRoute(tab))}
           />
         </View>
       </View>
