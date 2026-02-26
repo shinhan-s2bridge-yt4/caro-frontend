@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Pressable,
-  SafeAreaView,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -11,14 +8,10 @@ import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
 import type { VehicleBrand } from '@/types/vehicle';
 import { getVehicleBrands } from '@/services/vehicleService';
-import ProgressBar from '@/components/common/Bar/ProgressBar';
 import { CarButton } from '@/components/common/Button/CarButton';
 import { MainButton } from '@/components/common/Button/MainButton';
+import FormStepLayout from '@/components/common/Layout/FormStepLayout';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
-
-import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
-
-const SCREEN_MAX_WIDTH = 375;
 
 export default function VehicleBrandScreen() {
   const router = useRouter();
@@ -70,54 +63,24 @@ export default function VehicleBrandScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, width: '100%', maxWidth: SCREEN_MAX_WIDTH }}>
-          {/* 상단: 뒤로가기 */}
-          <View style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{ width: 24, height: 24, justifyContent: 'center' }}
-            >
-              <ArrowLeftIcon width={24} height={24} />
-            </Pressable>
-          </View>
-
-          {/* 진행바 */}
-          <View style={{ marginTop: 10, width: '100%', alignItems: 'center' }}>
-            <ProgressBar total={5} activeIndex={1} />
-          </View>
-
-          {/* 타이틀 */}
-          <View style={{ marginTop: 46, paddingHorizontal: 20 }}>
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.h2Semibold,
-                color: colors.coolNeutral[80],
-              }}
-            >
-              어떤 제조사의 차량인가요?
-            </Text>
-            <Text
-              style={{
-                marginTop: 8,
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body3Regular,
-                color: colors.coolNeutral[40],
-              }}
-            >
-              내 차 브랜드를 선택해주세요
-            </Text>
-          </View>
-
-          {/* 목록 */}
-          <View style={{ marginTop: 26, paddingHorizontal: 20 }}>
+    <FormStepLayout
+      onBack={() => router.back()}
+      title="어떤 제조사의 차량인가요?"
+      subtitle="내 차 브랜드를 선택해주세요"
+      activeStepIndex={1}
+      bodyMarginTop={26}
+      bodyContainerStyle={{ paddingHorizontal: 20 }}
+      footer={(
+        <MainButton
+          label="다음"
+          disabled={!isNextEnabled}
+          alwaysPrimary
+          onPress={handleNext}
+        />
+      )}
+    >
+      {/* 목록 */}
+      <View>
             {isLoading ? (
               <Text
                 style={{
@@ -167,21 +130,8 @@ export default function VehicleBrandScreen() {
                 </View>
               </View>
             )}
-          </View>
-
-          {/* 하단 버튼 */}
-          <View style={{ flex: 1 }} />
-          <View style={{ alignItems: 'center', marginTop: 49, marginBottom: 20 }}>
-            <MainButton
-              label="다음"
-              disabled={!isNextEnabled}
-              alwaysPrimary
-              onPress={handleNext}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </FormStepLayout>
   );
 }
 

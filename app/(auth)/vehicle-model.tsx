@@ -1,24 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { colors, typography, borderRadius } from '@/theme';
-import ProgressBar from '@/components/common/Bar/ProgressBar';
 import CarTypeInput from '@/components/common/Input/CarTypeInput';
 import { MainButton } from '@/components/common/Button/MainButton';
+import FormStepLayout from '@/components/common/Layout/FormStepLayout';
 import { getVehicleModels } from '@/services/vehicleService';
 import type { VehicleModel } from '@/types/vehicle';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
-
-import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
-
-const SCREEN_MAX_WIDTH = 375;
 
 function formatYears(startYear: number, endYear: number) {
   if (!startYear && !endYear) return '';
@@ -116,93 +110,61 @@ export default function VehicleModelScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, width: '100%', maxWidth: SCREEN_MAX_WIDTH }}>
-          {/* 상단: 뒤로가기 */}
-          <View style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{ width: 24, height: 24, justifyContent: 'center' }}
-            >
-              <ArrowLeftIcon width={24} height={24} />
-            </Pressable>
-          </View>
+    <FormStepLayout
+      onBack={() => router.back()}
+      title={`${userName}님의\n차 모델을 선택해주세요`}
+      subtitle="차종을 검색하거나 목록에서 선택할 수 있어요"
+      activeStepIndex={2}
+      keyboardShouldPersistTaps="handled"
+      footer={(
+        <MainButton
+          label="다음"
+          disabled={!isNextEnabled}
+          alwaysPrimary
+          onPress={handleNext}
+        />
+      )}
+    >
+      {/* 검색 */}
+      <View style={{ alignItems: 'center' }}>
+        <CarTypeInput
+          label="차종검색"
+          required
+          value={keyword}
+          onChangeText={(v) => {
+            setKeyword(v);
+            setInputError(undefined);
+            setResultMessage(null);
+          }}
+          placeholder="차종을 검색해주세요 예) 아반떼, 그랜저"
+          onClear={() => {
+            setKeyword('');
+            setInputError(undefined);
+            setResultMessage(null);
+            setModels([]);
+            setSelectedModelId(null);
+          }}
+          onCheckDuplicate={handleSearch}
+          error={inputError}
+        />
+      </View>
 
-          {/* 진행바 */}
-          <View style={{ marginTop: 10, width: '100%', alignItems: 'center' }}>
-            <ProgressBar total={5} activeIndex={2} />
-          </View>
+      {/* 결과 */}
+      {brandName ? (
+        <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body3Semibold,
+              color: colors.coolNeutral[80],
+            }}
+          >
+            {brandName} 차량
+          </Text>
+        </View>
+      ) : null}
 
-          {/* 타이틀 */}
-          <View style={{ marginTop: 46, paddingHorizontal: 20 }}>
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.h2Semibold,
-                color: colors.coolNeutral[80],
-              }}
-            >
-              {userName}님의{'\n'}차 모델을 선택해주세요
-            </Text>
-            <Text
-              style={{
-                marginTop: 8,
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body3Regular,
-                color: colors.coolNeutral[40],
-              }}
-            >
-              차종을 검색하거나 목록에서 선택할 수 있어요
-            </Text>
-          </View>
-
-          {/* 검색 */}
-          <View style={{ marginTop: 46, alignItems: 'center' }}>
-            <CarTypeInput
-              label="차종검색"
-              required
-              value={keyword}
-              onChangeText={(v) => {
-                setKeyword(v);
-                setInputError(undefined);
-                setResultMessage(null);
-              }}
-              placeholder="차종을 검색해주세요 예) 아반떼, 그랜저"
-              onClear={() => {
-                setKeyword('');
-                setInputError(undefined);
-                setResultMessage(null);
-                setModels([]);
-                setSelectedModelId(null);
-              }}
-              onCheckDuplicate={handleSearch}
-              error={inputError}
-            />
-          </View>
-
-          {/* 결과 */}
-          {brandName ? (
-            <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Semibold,
-                  color: colors.coolNeutral[80],
-                }}
-              >
-                {brandName} 차량
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={{ marginTop: 12, paddingHorizontal: 20, gap: 8 }}>
+      <View style={{ marginTop: 12, paddingHorizontal: 20, gap: 8 }}>
             {isSearching ? (
               <Text
                 style={{
@@ -282,21 +244,8 @@ export default function VehicleModelScreen() {
                 );
               })
             )}
-          </View>
-
-          {/* 하단 버튼 */}
-          <View style={{ flex: 1 }} />
-          <View style={{ alignItems: 'center', marginBottom: 20, marginTop: 48 }}>
-            <MainButton
-              label="다음"
-              disabled={!isNextEnabled}
-              alwaysPrimary
-              onPress={handleNext}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </FormStepLayout>
   );
 }
 

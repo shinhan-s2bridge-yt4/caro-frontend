@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, Text, View } from 'react-native';
+import { Alert, View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { colors, typography, borderRadius } from '@/theme';
 import { MainButton } from '@/components/common/Button/MainButton';
 import { SecondaryButton } from '@/components/common/Button/SecondaryButton';
+import FormStepLayout from '@/components/common/Layout/FormStepLayout';
 import { formatNumberWithComma } from '@/utils/number';
 import { getErrorMessage } from '@/utils/error';
 import { signUpWithEmail } from '@/services/authService';
@@ -12,10 +13,6 @@ import { registerMyCar } from '@/services/vehicleService';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
-
-import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
-
-const SCREEN_MAX_WIDTH = 375;
 
 function pickYear(startYearStr?: string, endYearStr?: string) {
   const startYear = Number(startYearStr);
@@ -141,125 +138,95 @@ export default function VehicleCompleteScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.coolNeutral[10] }}>
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, width: '100%', maxWidth: SCREEN_MAX_WIDTH }}>
-          {/* 상단: 뒤로가기 */}
-          <View style={{ paddingVertical: 12, paddingHorizontal: 20 }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{ width: 24, height: 24, justifyContent: 'center' }}
-            >
-              <ArrowLeftIcon width={24} height={24} />
-            </Pressable>
-          </View>
+    <FormStepLayout
+      onBack={() => router.back()}
+      title={`준비 완료!\n이제 카로를 시작해볼까요?`}
+      showProgress={false}
+      progressSpacerHeight={56}
+      titleMarginTop={0}
+      bodyMarginTop={32}
+      bodyContainerStyle={{ paddingHorizontal: 20 }}
+      footer={(
+        <>
+          <MainButton
+            label={isSubmitting ? '처리 중...' : mode === 'add-vehicle' ? '등록하기' : '카로 시작하기'}
+            alwaysPrimary
+            disabled={isSubmitting}
+            onPress={handleSubmit}
+          />
+          <SecondaryButton
+            label={mode === 'add-vehicle' ? '취소' : '수정할래요'}
+            onPress={() => {
+              if (mode === 'add-vehicle') {
+                clearDraft();
+                router.replace('/user');
+              } else {
+                router.replace('/(auth)/vehicle-brand');
+              }
+            }}
+            containerStyle={{ marginTop: 12 }}
+          />
+        </>
+      )}
+    >
+      {/* 등록 된 차량 */}
+      <View>
+        <Text
+          style={{
+            fontFamily: typography.fontFamily.pretendard,
+            ...typography.styles.body3Medium,
+            color: colors.coolNeutral[80],
+          }}
+        >
+          등록 된 차량
+        </Text>
 
-          {/* 진행바 자리 여백 */}
-          <View style={{ marginTop: 56 }} />
+        <View
+          style={{
+            marginTop: 12,
+            width: '100%',
+            borderRadius: borderRadius.lg,
+            paddingVertical: 20,
+            paddingHorizontal: 20,
+            borderWidth: 1,
+            borderColor: colors.primary[50],
+            backgroundColor: colors.background.default,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body1Bold,
+              color: colors.primary[50],
+            }}
+          >
+            {viewTitle || '차량 정보'}
+          </Text>
 
-          {/* 타이틀 */}
-          <View style={{ paddingHorizontal: 20 }}>
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.h2Semibold,
-                color: colors.coolNeutral[80],
-              }}
-            >
-              준비 완료!{'\n'}이제 카로를 시작해볼까요?
-            </Text>
-          </View>
-
-          {/* 등록 된 차량 */}
-          <View style={{ marginTop: 32, paddingHorizontal: 20 }}>
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body3Medium,
-                color: colors.coolNeutral[80],
-              }}
-            >
-              등록 된 차량
-            </Text>
-
-            <View
-              style={{
-                marginTop: 12,
-                width: '100%',
-                borderRadius: borderRadius.lg,
-                paddingVertical: 20,
-                paddingHorizontal: 20,
-                borderWidth: 1,
-                borderColor: colors.primary[50],
-                backgroundColor: colors.background.default,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body1Bold,
-                  color: colors.primary[50],
-                }}
-              >
-                {viewTitle || '차량 정보'}
-              </Text>
-
-              <Text
-                style={{
-                  marginTop: 8,
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Medium,
-                  color: colors.coolNeutral[40],
-                }}
-              >
-                {viewYear ? `${viewYear}년식` : '-'}  •  {viewMileageText ? `${viewMileageText}km` : '-'}
-              </Text>
-            </View>
-
-            <Text
-              style={{
-                marginTop: 12,
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.captionRegular,
-                color: colors.coolNeutral[40],
-              }}
-            >
-              언제든 차량을 추가하거나 수정할 수 있어요
-            </Text>
-          </View>
-
-          {/* 하단 여백 */}
-          <View style={{ flex: 1 }} />
-
-          {/* 하단 버튼 */}
-          <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <MainButton
-              label={isSubmitting ? '처리 중...' : mode === 'add-vehicle' ? '등록하기' : '카로 시작하기'}
-              alwaysPrimary
-              disabled={isSubmitting}
-              onPress={handleSubmit}
-            />
-            <SecondaryButton
-              label={mode === 'add-vehicle' ? '취소' : '수정할래요'}
-              onPress={() => {
-                if (mode === 'add-vehicle') {
-                  clearDraft();
-                  router.replace('/user');
-                } else {
-                  router.replace('/(auth)/vehicle-brand');
-                }
-              }}
-              containerStyle={{ marginTop: 12 }}
-            />
-          </View>
+          <Text
+            style={{
+              marginTop: 8,
+              fontFamily: typography.fontFamily.pretendard,
+              ...typography.styles.body3Medium,
+              color: colors.coolNeutral[40],
+            }}
+          >
+            {viewYear ? `${viewYear}년식` : '-'}  •  {viewMileageText ? `${viewMileageText}km` : '-'}
+          </Text>
         </View>
+
+        <Text
+          style={{
+            marginTop: 12,
+            fontFamily: typography.fontFamily.pretendard,
+            ...typography.styles.captionRegular,
+            color: colors.coolNeutral[40],
+          }}
+        >
+          언제든 차량을 추가하거나 수정할 수 있어요
+        </Text>
       </View>
-    </SafeAreaView>
+    </FormStepLayout>
   );
 }
 
