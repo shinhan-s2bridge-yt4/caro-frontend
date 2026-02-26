@@ -224,8 +224,8 @@ export default function LoginScreen() {
       </View>
       {/* 소셜 로그인 버튼 그룹 */}
       <View style={{ alignItems: 'center', gap:12}}>
-        <KakaoButton />
-        <GoogleButton />
+        <KakaoButton onPress={handleKakaoLogin} />
+        <GoogleButton onPress={handleGoogleLogin} />
       </View>
     </ScrollView>
   );
