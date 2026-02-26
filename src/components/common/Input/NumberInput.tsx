@@ -20,7 +20,7 @@ interface CustomNumberInputProps extends TextInputProps {
   onClear?: () => void;
 }
 
-const TextInput = ({
+const NumberInput = ({
   label,
   required = false,
   error,
@@ -151,4 +151,4 @@ const TextInput = ({
   );
 };
 
-export default TextInput;
+export default NumberInput;

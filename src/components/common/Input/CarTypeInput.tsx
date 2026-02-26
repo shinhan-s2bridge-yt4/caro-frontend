@@ -21,7 +21,7 @@ interface CustomCarTypeInputProps extends TextInputProps {
   onCheckDuplicate?: () => void;
 }
 
-const TextInput = ({
+const CarTypeInput = ({
   label,
   required = false,
   error,
@@ -161,4 +161,4 @@ const TextInput = ({
   );
 };
 
-export default TextInput;
+export default CarTypeInput;

@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await logoutApi({ accessToken });
       }
     } catch (e) {
-      // 서버 로그아웃 실패해도 로컬 상태는 정리
+      console.warn('[Auth] 로그아웃 API 실패:', e);
     } finally {
       set({
         memberId: null,

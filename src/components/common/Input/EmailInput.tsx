@@ -14,7 +14,7 @@ interface CustomEmailInputProps extends TextInputProps {
   onCheckDuplicate?: () => void;
 }
 
-const TextInput = ({
+const EmailInput = ({
   label,
   required = false,
   error,
@@ -156,4 +156,4 @@ const TextInput = ({
   );
 };
 
-export default TextInput;
+export default EmailInput;

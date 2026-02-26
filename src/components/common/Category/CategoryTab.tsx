@@ -7,7 +7,7 @@ type CategoryItem<T extends string = CategoryKey> = {
   label: string;
 };
 
-interface CategoryProps<T extends string = CategoryKey> {
+interface CategoryTabProps<T extends string = CategoryKey> {
   selected: T;
   onSelect: (key: T) => void;
   categories?: CategoryItem<T>[];
@@ -15,7 +15,13 @@ interface CategoryProps<T extends string = CategoryKey> {
   dividerAfterIndex?: number;
 }
 
-const Category = <T extends string = CategoryKey>({ selected, onSelect, categories, variant = 'default', dividerAfterIndex }: CategoryProps<T>) => {
+const CategoryTab = <T extends string = CategoryKey>({
+  selected,
+  onSelect,
+  categories,
+  variant = 'default',
+  dividerAfterIndex,
+}: CategoryTabProps<T>) => {
   const items = (categories ?? CATEGORIES) as CategoryItem<T>[];
 
   // variant에 따른 스타일
@@ -80,4 +86,4 @@ const Category = <T extends string = CategoryKey>({ selected, onSelect, categori
   );
 };
 
-export default Category;
+export default CategoryTab;

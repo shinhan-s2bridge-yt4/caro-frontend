@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { getExpenses, createExpense, updateExpense as updateExpenseApi, getExpenseCategories, getExpenseSummary } from '@/services/expenseService';
+import {
+  getExpenses,
+  createExpense as createExpenseApi,
+  updateExpense as updateExpenseApi,
+  getExpenseCategories,
+  getExpenseSummary,
+} from '@/services/expenseService';
 import type { Expense, ExpenseCategory, CreateExpenseRequest, UpdateExpenseRequest, ExpenseCategoryItem, ExpenseSummary } from '@/types/expense';
 import { getErrorMessage } from '@/utils/error';
 
@@ -149,7 +155,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   createExpense: async ({ request, accessToken }) => {
     set({ isCreating: true, createError: null });
     try {
-      await createExpense({ request, accessToken });
+      await createExpenseApi({ request, accessToken });
       set({ isCreating: false });
       return true;
     } catch (e: unknown) {
