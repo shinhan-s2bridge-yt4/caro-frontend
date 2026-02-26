@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { colors, typography, borderRadius } from '@/theme';
 import XIcon from '@/assets/icons/x_icon.svg';
+import { BaseInput, InputFrame } from '@/components/common/Input/BaseInput';
 
 interface CustomCarTypeInputProps extends TextInputProps {
   label: string;
@@ -78,30 +79,13 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ }}>
-      {/* 라벨 */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: 334, marginBottom: 12}}>
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body3Semibold,
-            color: colors.coolNeutral[80],
-          }}
-        >
-          {label}
-        </Text>
-        {required && (
-          <Text
-            style={{
-              fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionMedium,
-              color: colors.primary[50],
-            }}
-          >
-            *필수
-          </Text>
-        )}
-      </View>
+    <BaseInput
+      label={label}
+      required={required}
+      error={error}
+      success={success}
+      labelTone="body3"
+    >
 
 {/* 입력 영역 전체 */}
 <View
@@ -113,20 +97,10 @@ const TextInput = ({
   }}
 >
   {/* 🔹 입력칸 */}
-  <View
-    style={{
-      width: 260,
-      height: 48,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: 12,
-      paddingRight: 20,
-      paddingVertical: 8,
-      borderRadius: borderRadius.md,
-      borderWidth: 1.2,
-      borderColor: getBorderColor(),
-      backgroundColor: getBackgroundColor(),
-    }}
+  <InputFrame
+    width={260}
+    borderColor={getBorderColor()}
+    backgroundColor={getBackgroundColor()}
   >
     <RNTextInput
       ref={inputRef}
@@ -155,7 +129,7 @@ const TextInput = ({
             <XIcon width={24} height={24} fill={colors.coolNeutral[70]} />
           </Pressable>
         )}
-  </View>
+  </InputFrame>
 
   {/* 🔹 중복확인 버튼 */}
   <Pressable
@@ -183,36 +157,7 @@ const TextInput = ({
     </Text>
   </Pressable>
 </View>
-
-
-      {/* 에러 메시지 */}
-      {hasError && (
-        <Text
-          style={{
-            marginTop: 4,
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.captionRegular,
-            color: colors.red[30],
-          }}
-        >
-          {error}
-        </Text>
-      )}
-
-      {/* 성공 메시지 */}
-      {hasSuccess && (
-        <Text
-          style={{
-            marginTop: 4,
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.captionRegular,
-            color: colors.primary[50],
-          }}
-        >
-          {success}
-        </Text>
-      )}
-    </View>
+    </BaseInput>
   );
 };
 

@@ -4,11 +4,11 @@ import {
   Text,
   TextInput as RNTextInput,
   TextInputProps,
-  View,
 } from 'react-native';
-import { colors, typography, borderRadius } from '@/theme';
+import { colors, typography } from '@/theme';
 import XIcon from '@/assets/icons/x_icon.svg';
 import { formatNumberWithComma } from '@/utils/number';
+import { BaseInput, InputFrame } from '@/components/common/Input/BaseInput';
 
 interface CustomNumberInputProps extends TextInputProps {
   label: string;
@@ -87,55 +87,13 @@ const TextInput = ({
   };
 
   return (
-    <View style={{ width: 334 }}>
-      {/* 라벨 */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          width: 334,
-          marginBottom: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.body2Semibold,
-            color: colors.coolNeutral[80],
-          }}
-        >
-          {label}
-        </Text>
-        {required && (
-          <Text
-            style={{
-              fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.captionMedium,
-              color: colors.primary[50],
-            }}
-          >
-            *필수
-          </Text>
-        )}
-      </View>
-
+    <BaseInput label={label} required={required} error={error}>
       {/* 입력창 */}
-      <View
-        style={{
-          width: 334,
-          height: 48,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingLeft: 12,
-          paddingRight: 20,
-          paddingVertical: 8,
-          borderRadius: borderRadius.md, // 더 둥글게
-          borderWidth: 1.2,
-          borderColor: getBorderColor(),
-          backgroundColor: getBackgroundColor(),
-        }}
+      <InputFrame
+        width={334}
+        borderColor={getBorderColor()}
+        backgroundColor={getBackgroundColor()}
+        style={{ justifyContent: 'space-between' }}
       >
         <RNTextInput
           ref={inputRef}
@@ -189,22 +147,8 @@ const TextInput = ({
           </Text>
         ) : null}
 
-      </View>
-
-      {/* 에러 메시지 */}
-      {hasError && (
-        <Text
-          style={{
-            marginTop: 4,
-            fontFamily: typography.fontFamily.pretendard,
-            ...typography.styles.captionRegular,
-            color: colors.red[30],
-          }}
-        >
-          {error}
-        </Text>
-      )}
-    </View>
+      </InputFrame>
+    </BaseInput>
   );
 };
 
