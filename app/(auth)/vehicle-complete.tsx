@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { colors, typography, borderRadius } from '@/theme';
 import { MainButton } from '@/components/common/Button/MainButton';
+import { SecondaryButton } from '@/components/common/Button/SecondaryButton';
 import { formatNumberWithComma } from '@/utils/number';
 import { getErrorMessage } from '@/utils/error';
 import { signUpWithEmail } from '@/services/authService';
@@ -243,7 +244,8 @@ export default function VehicleCompleteScreen() {
               disabled={isSubmitting}
               onPress={handleSubmit}
             />
-            <Pressable
+            <SecondaryButton
+              label={mode === 'add-vehicle' ? '취소' : '수정할래요'}
               onPress={() => {
                 if (mode === 'add-vehicle') {
                   clearDraft();
@@ -252,26 +254,8 @@ export default function VehicleCompleteScreen() {
                   router.replace('/(auth)/vehicle-brand');
                 }
               }}
-              style={{
-                marginTop: 12,
-                width: 335,
-                height: 48,
-                borderRadius: borderRadius.md,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.coolNeutral[20],
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body2Bold,
-                  color: colors.coolNeutral[50],
-                }}
-              >
-                {mode === 'add-vehicle' ? '취소' : '수정할래요'}
-              </Text>
-            </Pressable>
+              containerStyle={{ marginTop: 12 }}
+            />
           </View>
         </View>
       </View>

@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { colors, typography, borderRadius } from '@/theme';
+import { colors, typography } from '@/theme';
 import ProgressBar from '@/components/common/Bar/ProgressBar';
 import NumberInput from '@/components/common/Input/NumberInput';
 import { MainButton } from '@/components/common/Button/MainButton';
+import { SecondaryButton } from '@/components/common/Button/SecondaryButton';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
@@ -162,28 +163,11 @@ export default function VehicleMileageScreen() {
             <View style={{ flex: 1 }} />
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <MainButton label="다음" alwaysPrimary onPress={handleNext} />
-              <Pressable
+              <SecondaryButton
+                label="건너뛰기"
                 onPress={handleSkip}
-                style={{
-                  marginTop: 12,
-                  width: 335,
-                  height: 48,
-                  borderRadius: borderRadius.md,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: colors.coolNeutral[20],
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body2Bold,
-                    color: colors.coolNeutral[50],
-                  }}
-                >
-                  건너뛰기
-                </Text>
-              </Pressable>
+                containerStyle={{ marginTop: 12 }}
+              />
             </View>
           </View>
         </ScrollView>
