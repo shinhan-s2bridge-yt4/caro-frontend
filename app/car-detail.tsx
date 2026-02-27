@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
+import { ContentState } from '@/components/common/State/ContentState';
 import { useProfileStore } from '@/stores/profileStore';
 import { useAuthStore } from '@/stores/authStore';
 import { getDrivingRecordDetail } from '@/services/drivingRecordService';
@@ -265,32 +266,18 @@ export default function CarDetailScreen() {
       </View>
 
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary[50]} />
-        </View>
+        <ContentState
+          variant="loading"
+          containerStyle={{ flex: 1 }}
+        />
       ) : error || !detail ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text
-            style={{
-              fontFamily: typography.fontFamily.pretendard,
-              ...typography.styles.body2Medium,
-              color: colors.coolNeutral[40],
-            }}
-          >
-            운행 기록을 불러올 수 없습니다.
-          </Text>
-          <Pressable onPress={fetchDetail}>
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body3Semibold,
-                color: colors.primary[50],
-              }}
-            >
-              다시 시도
-            </Text>
-          </Pressable>
-        </View>
+        <ContentState
+          variant="error"
+          message="운행 기록을 불러올 수 없습니다."
+          actionLabel="다시 시도"
+          onAction={fetchDetail}
+          containerStyle={{ flex: 1 }}
+        />
       ) : (
       <ScrollView
         style={{ flex: 1 }}

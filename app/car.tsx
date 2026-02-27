@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { MainButton } from '@/components/common/Button/MainButton';
+import { ContentState } from '@/components/common/State/ContentState';
 import { useAuthStore } from '@/stores/authStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
 import type { DrivingRecord } from '@/types/drivingRecord';
@@ -450,36 +451,20 @@ export default function CarScreen() {
             </View>
 
             {isLoading ? (
-              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={colors.primary[50]} />
-              </View>
+              <ContentState variant="loading" />
             ) : error ? (
-              <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center' }}>
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body2Medium,
-                    color: colors.coolNeutral[60],
-                    textAlign: 'center',
-                  }}
-                >
-                  {error}
-                </Text>
-              </View>
+              <ContentState variant="error" message={error} />
             ) : records.length === 0 ? (
               <View style={{ paddingHorizontal: 20, paddingVertical: 40, alignItems: 'center', gap: 13 }}>
-                <Text
-                  style={{
-                    fontFamily: typography.fontFamily.pretendard,
-                    ...typography.styles.body2Medium,
-                    color: colors.coolNeutral[60],
-                    textAlign: 'center',
-                  }}
-                >
-                  {yearMonth
-                    ? `${formatMonthKoreanFromYm(yearMonth)}은 아직\n운행기록이 없어요`
-                    : '아직 운행 기록이 없습니다.'}
-                </Text>
+                <ContentState
+                  variant="empty"
+                  message={
+                    yearMonth
+                      ? `${formatMonthKoreanFromYm(yearMonth)}은 아직\n운행기록이 없어요`
+                      : '아직 운행 기록이 없습니다.'
+                  }
+                  containerStyle={{ paddingHorizontal: 0, paddingVertical: 0, gap: 0 }}
+                />
                 {yearMonth && (
                   <Pressable
                     onPress={() => {
