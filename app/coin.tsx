@@ -242,11 +242,36 @@ export default function CoinScreen() {
     return `${pickedYear}년 ${pickedMonth}월 ${pickedDay}일 (${pickedWeekdayLabel})`;
   }, [pickedDay, pickedMonth, pickedWeekdayLabel, pickedYear]);
 
+  const openAddExpenseModal = () => {
+    requestAnimationFrame(() => setIsAddExpenseOpen(true));
+  };
+
+  const closeCarSelectModal = () => {
+    setIsCarSelectOpen(false);
+  };
+
+  const openCarSelectModal = () => {
+    if (accessToken) {
+      loadMyCars();
+    }
+    setIsCarSelectOpen(true);
+  };
+
+  const closeAddExpenseModal = (options?: { resetForm?: boolean; clearEditing?: boolean }) => {
+    setIsAddExpenseOpen(false);
+    if (options?.resetForm) {
+      resetAddExpenseForm();
+    }
+    if (options?.clearEditing) {
+      setEditingExpenseId(null);
+    }
+  };
+
   const closeDatePicker = () => {
     setIsDatePickerOpen(false);
     if (restoreAddExpenseAfterDatePicker) {
       setRestoreAddExpenseAfterDatePicker(false);
-      requestAnimationFrame(() => setIsAddExpenseOpen(true));
+      openAddExpenseModal();
     }
   };
 
@@ -293,6 +318,16 @@ export default function CoinScreen() {
     setPickedYear(kst.year);
     setPickedMonth(kst.month);
     setPickedDay(kst.day);
+  };
+
+  const refreshExpenseData = () => {
+    const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
+    fetchExpenses({ yearMonth, size: 100 });
+    if (selectedTab === 'expense') {
+      fetchSummary({});
+    } else {
+      fetchSummary({ yearMonth });
+    }
   };
 
   // OCR 결과를 폼에 적용
@@ -702,17 +737,14 @@ export default function CoinScreen() {
 
   // 차량 선택 모달 열기 (차량 목록 로드 포함)
   const openCarSelect = () => {
-    if (accessToken) {
-      loadMyCars();
-    }
-    setIsCarSelectOpen(true);
+    openCarSelectModal();
   };
 
   // 차량 선택 후 지출 추가 폼으로 이동
   const handleCarSelected = (car: PrimaryCar) => {
     setSelectedCar(car);
-    setIsCarSelectOpen(false);
-    requestAnimationFrame(() => setIsAddExpenseOpen(true));
+    closeCarSelectModal();
+    openAddExpenseModal();
   };
 
   // 지출 상세 모달 열기
@@ -726,11 +758,8 @@ export default function CoinScreen() {
 
   // 지출 추가 폼에서 차량 변경하기
   const handleChangeCarFromForm = () => {
-    setIsAddExpenseOpen(false);
-    if (accessToken) {
-      loadMyCars();
-    }
-    requestAnimationFrame(() => setIsCarSelectOpen(true));
+    closeAddExpenseModal();
+    openCarSelectModal();
   };
 
   return (
@@ -810,7 +839,7 @@ export default function CoinScreen() {
                             setSelectedCar(matched);
                           }
                           // 수정 폼 열기
-                          requestAnimationFrame(() => setIsAddExpenseOpen(true));
+                          openAddExpenseModal();
                         }}
                         accessibilityRole="button"
                         accessibilityLabel="edit-expense"
@@ -1061,11 +1090,11 @@ export default function CoinScreen() {
         visible={isCarSelectOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsCarSelectOpen(false)}
+        onRequestClose={closeCarSelectModal}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
           <Pressable
-            onPress={() => setIsCarSelectOpen(false)}
+            onPress={closeCarSelectModal}
             style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             accessibilityRole="button"
             accessibilityLabel="dismiss-car-select"
@@ -1103,7 +1132,7 @@ export default function CoinScreen() {
                 </Text>
 
                 <Pressable
-                  onPress={() => setIsCarSelectOpen(false)}
+                  onPress={closeCarSelectModal}
                   accessibilityRole="button"
                   accessibilityLabel="close-car-select"
                   style={{ alignItems: 'center', justifyContent: 'center' }}
@@ -1215,12 +1244,12 @@ export default function CoinScreen() {
         visible={isAddExpenseOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
+        onRequestClose={() => closeAddExpenseModal({ clearEditing: true })}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)' }}>
           {/* backdrop */}
           <Pressable
-            onPress={() => { setIsAddExpenseOpen(false); setEditingExpenseId(null); }}
+            onPress={() => closeAddExpenseModal({ clearEditing: true })}
             style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             accessibilityRole="button"
             accessibilityLabel="dismiss-add-expense"
@@ -1260,11 +1289,7 @@ export default function CoinScreen() {
                 </Text>
 
                 <Pressable
-                  onPress={() => {
-                    setIsAddExpenseOpen(false);
-                    resetAddExpenseForm();
-                    setEditingExpenseId(null);
-                  }}
+                  onPress={() => closeAddExpenseModal({ resetForm: true, clearEditing: true })}
                   accessibilityRole="button"
                   accessibilityLabel="close-add-expense"
                   style={{ alignItems: 'center', justifyContent: 'center' }}
@@ -1584,17 +1609,8 @@ export default function CoinScreen() {
                           });
 
                           if (success) {
-                            setIsAddExpenseOpen(false);
-                            resetAddExpenseForm();
-                            setEditingExpenseId(null);
-                            // 지출 목록 + 요약 새로고침
-                            const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
-                            fetchExpenses({ yearMonth, size: 100 });
-                            if (selectedTab === 'expense') {
-                              fetchSummary({});
-                            } else {
-                              fetchSummary({ yearMonth });
-                            }
+                            closeAddExpenseModal({ resetForm: true, clearEditing: true });
+                            refreshExpenseData();
                           } else {
                             const errorMsg = useExpenseStore.getState().updateError || '지출 내역 수정에 실패했습니다.';
                             Alert.alert('오류', errorMsg);
@@ -1618,16 +1634,8 @@ export default function CoinScreen() {
                           });
 
                           if (success) {
-                            setIsAddExpenseOpen(false);
-                            resetAddExpenseForm();
-                            // 지출 목록 + 요약 새로고침
-                            const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
-                            fetchExpenses({ yearMonth, size: 100 });
-                            if (selectedTab === 'expense') {
-                              fetchSummary({});
-                            } else {
-                              fetchSummary({ yearMonth });
-                            }
+                            closeAddExpenseModal({ resetForm: true, clearEditing: true });
+                            refreshExpenseData();
                             setIsExpenseToastVisible(true);
                           } else {
                             const errorMsg = useExpenseStore.getState().createError || '지출 내역 추가에 실패했습니다.';
