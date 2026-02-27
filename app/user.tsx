@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
+import { USER_MENU_ITEMS, type UserMenuKey } from '@/components/user/constants/menuItems';
 import { ProfileEditModal } from '@/components/user/modals/ProfileEditModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfileEdit } from '@/hooks/user/useUserProfileEdit';
@@ -89,6 +90,17 @@ export default function UserScreen() {
         },
       },
     ]);
+  };
+
+  const handleMenuPress = (menuKey: UserMenuKey) => {
+    if (menuKey === 'logout') {
+      handleLogoutPress();
+      return;
+    }
+    if (menuKey === 'my-car') {
+      router.push('/my-car');
+      return;
+    }
   };
 
   return (
@@ -310,27 +322,13 @@ export default function UserScreen() {
               <View style={{ paddingVertical: 32, paddingHorizontal: 20 }}>
                 {/* 메뉴 리스트 */}
                 <View>
-                  {[
-                    '내 차 정보',
-                    '설정',
-                    '알림 설정',
-                    '개인정보 보호',
-                    '도움말 및 지원',
-                    '이용약관',
-                    '로그아웃',
-                  ].flatMap((label, idx, arr) => {
+                  {USER_MENU_ITEMS.flatMap(({ key, label }, idx, arr) => {
                     const row = (
                       <Pressable
-                        key={label}
-                        onPress={
-                          label === '로그아웃'
-                            ? handleLogoutPress
-                            : label === '내 차 정보'
-                              ? () => router.push('/my-car')
-                              : () => {}
-                        }
+                        key={key}
+                        onPress={() => handleMenuPress(key)}
                         accessibilityRole="button"
-                        accessibilityLabel={`mypage-${label}`}
+                        accessibilityLabel={`mypage-${key}`}
                         style={{
                           paddingTop: 10,
                           paddingBottom: 24,
@@ -358,10 +356,10 @@ export default function UserScreen() {
                     return [
                       row,
                       <View
-                        key={`sep-${label}`}
+                        key={`sep-${key}`}
                         style={{ width: '100%', height: 1, backgroundColor: colors.coolNeutral[30] }}
                       />,
-                      <View key={`sep-gap-${label}`} style={{ height: 20 }} />,
+                      <View key={`sep-gap-${key}`} style={{ height: 20 }} />,
                     ];
                   })}
                 </View>
