@@ -20,9 +20,9 @@ type DrivingRecordState = {
   summaryError: string | null;
 
   setYearMonth: (yearMonth: string | null) => void;
-  fetchRecords: (params: { yearMonth?: string; accessToken: string }) => Promise<void>;
-  fetchMoreRecords: (params: { accessToken: string }) => Promise<void>;
-  fetchSummary: (params: { accessToken: string }) => Promise<void>;
+  fetchRecords: (params: { yearMonth?: string }) => Promise<void>;
+  fetchMoreRecords: () => Promise<void>;
+  fetchSummary: () => Promise<void>;
   reset: () => void;
 };
 
@@ -43,12 +43,11 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
 
   setYearMonth: (yearMonth) => set({ yearMonth }),
 
-  fetchRecords: async ({ yearMonth, accessToken }) => {
+  fetchRecords: async ({ yearMonth }) => {
     set({ isLoading: true, error: null, yearMonth: yearMonth ?? null });
     try {
       const response = await getDrivingRecords({
         request: yearMonth ? { yearMonth } : {},
-        accessToken,
       });
       set({
         records: response.records,
@@ -63,7 +62,7 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
     }
   },
 
-  fetchMoreRecords: async ({ accessToken }) => {
+  fetchMoreRecords: async () => {
     const { yearMonth, nextCursor, hasNext, isLoadingMore } = get();
     if (!hasNext || isLoadingMore || nextCursor === null) return;
 
@@ -74,7 +73,6 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
           ...(yearMonth && { yearMonth }),
           cursor: nextCursor,
         },
-        accessToken,
       });
       set((state) => ({
         records: [...state.records, ...response.records],
@@ -88,10 +86,10 @@ export const useDrivingRecordStore = create<DrivingRecordState>((set, get) => ({
     }
   },
 
-  fetchSummary: async ({ accessToken }) => {
+  fetchSummary: async () => {
     set({ isSummaryLoading: true, summaryError: null });
     try {
-      const summary = await getDrivingSummary({ accessToken });
+      const summary = await getDrivingSummary();
       set({ summary, isSummaryLoading: false });
     } catch (e) {
       const message = getErrorMessage(e, '운행 요약 정보를 불러오는데 실패했습니다.');

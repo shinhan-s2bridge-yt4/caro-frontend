@@ -14,7 +14,6 @@ import type {
 
 export async function getDrivingRecords(params: {
   request: DrivingRecordsRequest;
-  accessToken: string;
 }): Promise<DrivingRecordsResponse> {
   const response = await apiClient.get<ApiEnvelope<DrivingRecordsResponse>>(
     '/api/v1/driving-records',
@@ -30,9 +29,7 @@ export async function getDrivingRecords(params: {
   return getApiData(response);
 }
 
-export async function getDrivingSummary(params: {
-  accessToken: string;
-}): Promise<DrivingSummary> {
+export async function getDrivingSummary(): Promise<DrivingSummary> {
   const response = await apiClient.get<ApiEnvelope<DrivingSummary>>(
     '/api/v1/driving-records/summary',
   );
@@ -60,7 +57,6 @@ export async function getDrivingRecordDetail(
 
 export async function createDrivingRecord(params: {
   request: CreateDrivingRecordRequest;
-  accessToken: string;
 }): Promise<CreateDrivingRecordResponse> {
   const response = await apiClient.post<ApiEnvelope<CreateDrivingRecordResponse>>(
     '/api/v1/driving-records',

@@ -467,7 +467,6 @@ export default function CoinScreen() {
     if (selectedTab === 'expense' && accessToken) {
       const apiCategory = mapUiCategoryToApi(selectedCategory);
       fetchExpenses({
-        accessToken,
         category: apiCategory,
       });
     }
@@ -479,7 +478,6 @@ export default function CoinScreen() {
       const apiCategory = mapUiCategoryToApi(calendarSelectedCategory);
       const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
       fetchExpenses({
-        accessToken,
         category: apiCategory,
         yearMonth,
         size: 100,
@@ -492,11 +490,11 @@ export default function CoinScreen() {
     if (accessToken) {
       if (selectedTab === 'expense') {
         // 지출 탭: yearMonth 없이 전체 기간 누적 조회
-        fetchSummary({ accessToken });
+        fetchSummary({});
       } else {
         // 캘린더 탭: 월별 조회
         const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
-        fetchSummary({ accessToken, yearMonth });
+        fetchSummary({ yearMonth });
       }
     }
   }, [accessToken, selectedTab, currentYear, currentMonthIndex, fetchSummary]);
@@ -504,7 +502,7 @@ export default function CoinScreen() {
   // 카테고리 목록 조회 (최초 1회)
   useEffect(() => {
     if (accessToken && categories.length === 0) {
-      fetchCategories({ accessToken });
+      fetchCategories();
     }
   }, [accessToken, categories.length, fetchCategories]);
 
@@ -705,7 +703,7 @@ export default function CoinScreen() {
   // 차량 선택 모달 열기 (차량 목록 로드 포함)
   const openCarSelect = () => {
     if (accessToken) {
-      loadMyCars(accessToken);
+      loadMyCars();
     }
     setIsCarSelectOpen(true);
   };
@@ -730,7 +728,7 @@ export default function CoinScreen() {
   const handleChangeCarFromForm = () => {
     setIsAddExpenseOpen(false);
     if (accessToken) {
-      loadMyCars(accessToken);
+      loadMyCars();
     }
     requestAnimationFrame(() => setIsCarSelectOpen(true));
   };
@@ -1583,7 +1581,6 @@ export default function CoinScreen() {
                           const success = await updateExpense({
                             expenseId: editingExpenseId,
                             request: updateData,
-                            accessToken,
                           });
 
                           if (success) {
@@ -1592,11 +1589,11 @@ export default function CoinScreen() {
                             setEditingExpenseId(null);
                             // 지출 목록 + 요약 새로고침
                             const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
-                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchExpenses({ yearMonth, size: 100 });
                             if (selectedTab === 'expense') {
-                              fetchSummary({ accessToken });
+                              fetchSummary({});
                             } else {
-                              fetchSummary({ accessToken, yearMonth });
+                              fetchSummary({ yearMonth });
                             }
                           } else {
                             const errorMsg = useExpenseStore.getState().updateError || '지출 내역 수정에 실패했습니다.';
@@ -1618,7 +1615,6 @@ export default function CoinScreen() {
 
                           const success = await createExpense({
                             request: requestData,
-                            accessToken,
                           });
 
                           if (success) {
@@ -1626,11 +1622,11 @@ export default function CoinScreen() {
                             resetAddExpenseForm();
                             // 지출 목록 + 요약 새로고침
                             const yearMonth = toYearMonth(currentYear, currentMonthIndex + 1);
-                            fetchExpenses({ accessToken, yearMonth, size: 100 });
+                            fetchExpenses({ yearMonth, size: 100 });
                             if (selectedTab === 'expense') {
-                              fetchSummary({ accessToken });
+                              fetchSummary({});
                             } else {
-                              fetchSummary({ accessToken, yearMonth });
+                              fetchSummary({ yearMonth });
                             }
                             setIsExpenseToastVisible(true);
                           } else {

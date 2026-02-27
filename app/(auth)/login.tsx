@@ -53,7 +53,7 @@ export default function LoginScreen() {
       setAuth(result);
 
       // 프로필 정보 로드
-      await loadProfile(result.accessToken);
+      await loadProfile();
 
       // 로그인 성공 후 홈으로 이동
       router.replace('/home');

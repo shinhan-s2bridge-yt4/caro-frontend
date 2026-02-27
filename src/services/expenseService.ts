@@ -15,7 +15,6 @@ import type {
 
 export async function getExpenses(params: {
   request: ExpensesRequest;
-  accessToken: string;
 }): Promise<ExpensesResponse> {
   const response = await apiClient.get<ApiEnvelope<ExpensesResponse>>(
     '/api/v1/expenses',
@@ -35,7 +34,6 @@ export async function getExpenses(params: {
 
 export async function createExpense(params: {
   request: CreateExpenseRequest;
-  accessToken: string;
 }): Promise<CreateExpenseResponse> {
   const response = await apiClient.post<ApiEnvelope<CreateExpenseResponse>>(
     '/api/v1/expenses',
@@ -48,7 +46,6 @@ export async function createExpense(params: {
 export async function updateExpense(params: {
   expenseId: number;
   request: UpdateExpenseRequest;
-  accessToken: string;
 }): Promise<UpdateExpenseResponse> {
   const response = await apiClient.put<ApiEnvelope<UpdateExpenseResponse>>(
     `/api/v1/expenses/${params.expenseId}`,
@@ -60,7 +57,6 @@ export async function updateExpense(params: {
 
 export async function getExpenseSummary(params: {
   yearMonth?: string;
-  accessToken: string;
 }): Promise<ExpenseSummary> {
   const response = await apiClient.get<ApiEnvelope<ExpenseSummary>>(
     '/api/v1/expenses/summary',
@@ -74,9 +70,7 @@ export async function getExpenseSummary(params: {
   return getApiData(response);
 }
 
-export async function getExpenseCategories(params: {
-  accessToken: string;
-}): Promise<ExpenseCategoryItem[]> {
+export async function getExpenseCategories(): Promise<ExpenseCategoryItem[]> {
   const response = await apiClient.get<ApiEnvelope<ExpenseCategoryItem[]>>(
     '/api/v1/expenses/categories',
   );

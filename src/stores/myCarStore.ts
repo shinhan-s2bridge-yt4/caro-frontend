@@ -7,7 +7,7 @@ type MyCarState = {
   cars: PrimaryCar[];
   isLoading: boolean;
   error: string | null;
-  loadMyCars: (accessToken: string) => Promise<void>;
+  loadMyCars: () => Promise<void>;
   clearCars: () => void;
 };
 
@@ -15,10 +15,10 @@ export const useMyCarStore = create<MyCarState>((set) => ({
   cars: [],
   isLoading: false,
   error: null,
-  loadMyCars: async (accessToken: string) => {
+  loadMyCars: async () => {
     set({ isLoading: true, error: null });
     try {
-      const cars = await fetchMyCars(accessToken);
+      const cars = await fetchMyCars();
       set({ cars, isLoading: false });
     } catch (e) {
       set({

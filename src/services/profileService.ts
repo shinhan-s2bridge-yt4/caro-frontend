@@ -18,7 +18,7 @@ export async function fetchDashboard(): Promise<DashboardData> {
   return getApiData(response);
 }
 
-export async function fetchProfile(accessToken: string): Promise<ProfileData> {
+export async function fetchProfile(): Promise<ProfileData> {
   const response = await apiClient.get<ApiEnvelope<ProfileData>>(
     '/api/v1/profiles',
   );
@@ -35,7 +35,6 @@ export interface UpdateProfileRequest {
 }
 
 export async function updateProfile(
-  accessToken: string,
   request: UpdateProfileRequest,
 ): Promise<ProfileData> {
   // 수정하려는 필드만 포함, 유지하려는 필드는 제외

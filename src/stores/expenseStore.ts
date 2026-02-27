@@ -38,7 +38,6 @@ type ExpenseState = {
   summaryError: string | null;
 
   fetchExpenses: (params: {
-    accessToken: string;
     yearMonth?: string;
     date?: string;
     category?: ExpenseCategory;
@@ -46,7 +45,6 @@ type ExpenseState = {
   }) => Promise<void>;
 
   fetchMoreExpenses: (params: {
-    accessToken: string;
     yearMonth?: string;
     date?: string;
     category?: ExpenseCategory;
@@ -54,19 +52,16 @@ type ExpenseState = {
 
   createExpense: (params: {
     request: CreateExpenseRequest;
-    accessToken: string;
   }) => Promise<boolean>;
 
   updateExpense: (params: {
     expenseId: number;
     request: UpdateExpenseRequest;
-    accessToken: string;
   }) => Promise<boolean>;
 
-  fetchCategories: (params: { accessToken: string }) => Promise<void>;
+  fetchCategories: () => Promise<void>;
 
   fetchSummary: (params: {
-    accessToken: string;
     yearMonth?: string;
   }) => Promise<void>;
 
@@ -100,7 +95,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   isSummaryLoading: false,
   summaryError: null,
 
-  fetchExpenses: async ({ accessToken, yearMonth, date, category, size }) => {
+  fetchExpenses: async ({ yearMonth, date, category, size }) => {
     set({ isLoading: true, error: null });
     try {
       const response = await getExpenses({
@@ -110,7 +105,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
           ...(category && { category }),
           ...(size && { size }),
         },
-        accessToken,
       });
       set({
         expenses: response.expenses,
@@ -125,7 +119,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  fetchMoreExpenses: async ({ accessToken, yearMonth, date, category }) => {
+  fetchMoreExpenses: async ({ yearMonth, date, category }) => {
     const { nextCursor, hasNext, isLoadingMore } = get();
     if (!hasNext || isLoadingMore || !nextCursor) return;
 
@@ -138,7 +132,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
           ...(category && { category }),
           cursor: nextCursor,
         },
-        accessToken,
       });
       set((state) => ({
         expenses: [...state.expenses, ...response.expenses],
@@ -152,10 +145,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  createExpense: async ({ request, accessToken }) => {
+  createExpense: async ({ request }) => {
     set({ isCreating: true, createError: null });
     try {
-      await createExpenseApi({ request, accessToken });
+      await createExpenseApi({ request });
       set({ isCreating: false });
       return true;
     } catch (e: unknown) {
@@ -166,10 +159,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  updateExpense: async ({ expenseId, request, accessToken }) => {
+  updateExpense: async ({ expenseId, request }) => {
     set({ isUpdating: true, updateError: null });
     try {
-      await updateExpenseApi({ expenseId, request, accessToken });
+      await updateExpenseApi({ expenseId, request });
       set({ isUpdating: false });
       return true;
     } catch (e: unknown) {
@@ -180,10 +173,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  fetchCategories: async ({ accessToken }) => {
+  fetchCategories: async () => {
     set({ isCategoriesLoading: true, categoriesError: null });
     try {
-      const categories = await getExpenseCategories({ accessToken });
+      const categories = await getExpenseCategories();
       set({ categories, isCategoriesLoading: false });
     } catch (e) {
       const message = getErrorMessage(e, '카테고리 목록을 불러오는데 실패했습니다.');
@@ -191,13 +184,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
 
-  fetchSummary: async ({ accessToken, yearMonth }) => {
+  fetchSummary: async ({ yearMonth }) => {
     set({ isSummaryLoading: true, summaryError: null });
     try {
-      const summary = await getExpenseSummary({
-        accessToken,
-        yearMonth,
-      });
+      const summary = await getExpenseSummary({ yearMonth });
       set({ summary, isSummaryLoading: false });
     } catch (e) {
       const message = getErrorMessage(e, '지출 요약을 불러오는데 실패했습니다.');

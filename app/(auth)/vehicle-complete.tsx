@@ -75,7 +75,6 @@ export default function VehicleCompleteScreen() {
         setIsSubmitting(true);
 
         await registerMyCar({
-          accessToken,
           payload: {
             modelId: vehicle.modelId,
             registrationNumber: vehicle.registrationNumber,
@@ -119,7 +118,6 @@ export default function VehicleCompleteScreen() {
       });
 
       await registerMyCar({
-        accessToken: auth.accessToken,
         payload: {
           modelId: vehicle.modelId,
           registrationNumber: vehicle.registrationNumber,

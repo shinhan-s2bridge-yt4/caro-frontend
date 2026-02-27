@@ -39,9 +39,9 @@ export default function UserScreen() {
   // API에서 프로필 데이터, 대시보드, 차량 목록 로드
   useEffect(() => {
     if (accessToken) {
-      loadProfile(accessToken);
+      loadProfile();
       fetchDashboard().then(setDashboard).catch(() => {});
-      loadMyCars(accessToken);
+      loadMyCars();
     }
   }, [accessToken, loadProfile, loadMyCars]);
   
@@ -112,11 +112,11 @@ export default function UserScreen() {
     
     setIsSaving(true);
     try {
-      await updateProfile(accessToken, request);
+      await updateProfile(request);
       // 프로필 + 차량 목록 다시 로드하여 최신 상태 반영
       await Promise.all([
-        loadProfile(accessToken),
-        loadMyCars(accessToken),
+        loadProfile(),
+        loadMyCars(),
       ]);
       setIsEditModalVisible(false);
     } catch (e) {

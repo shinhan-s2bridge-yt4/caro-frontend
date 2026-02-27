@@ -140,7 +140,7 @@ export default function HomeScreen() {
   // 차량 목록 로드
   useEffect(() => {
     if (accessToken) {
-      loadMyCars(accessToken);
+      loadMyCars();
     }
   }, [accessToken, loadMyCars]);
 
@@ -184,7 +184,6 @@ export default function HomeScreen() {
             endLocation: '복구된 운행',
             routeCoordinates: orphaned.points,
           },
-          accessToken,
         });
 
         await clearSession();
@@ -443,7 +442,6 @@ export default function HomeScreen() {
 
         await createDrivingRecord({
           request: requestBody,
-          accessToken,
         });
 
         // 서버 전송 성공 → 로컬 세션 정리
@@ -530,7 +528,7 @@ export default function HomeScreen() {
       await setPrimaryCar(carId);
       // 대표 차량 변경 후 프로필 새로고침
       if (accessToken) {
-        await loadProfile(accessToken);
+        await loadProfile();
       }
     } catch (err) {
       console.warn('대표 차량 변경 실패:', err);

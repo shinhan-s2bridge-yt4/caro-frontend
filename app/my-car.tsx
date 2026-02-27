@@ -24,8 +24,8 @@ export default function MyCarScreen() {
 
   useEffect(() => {
     if (accessToken) {
-      loadProfile(accessToken);
-      loadMyCars(accessToken);
+      loadProfile();
+      loadMyCars();
     }
   }, [accessToken, loadProfile, loadMyCars]);
 
@@ -38,7 +38,7 @@ export default function MyCarScreen() {
     try {
       await deleteMyCar(deleteTarget.id);
       // 삭제 후 차량 목록 & 프로필 새로고침
-      await Promise.all([loadMyCars(accessToken), loadProfile(accessToken)]);
+      await Promise.all([loadMyCars(), loadProfile()]);
     } catch (err) {
       console.warn('차량 삭제 실패:', err);
     } finally {
@@ -58,7 +58,7 @@ export default function MyCarScreen() {
     try {
       await setPrimaryCar(carId);
       // 대표 차량 변경 후 프로필 새로고침
-      await loadProfile(accessToken);
+      await loadProfile();
     } catch (err) {
       console.warn('대표 차량 변경 실패:', err);
     }

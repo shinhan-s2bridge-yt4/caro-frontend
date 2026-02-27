@@ -214,7 +214,7 @@ export default function CarDetailScreen() {
 
   useEffect(() => {
     if (accessToken && !primaryCar) {
-      loadProfile(accessToken);
+      loadProfile();
     }
   }, [accessToken, primaryCar, loadProfile]);
 

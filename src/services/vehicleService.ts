@@ -41,7 +41,6 @@ export async function getVehicleModels(params: {
 // 인증 필요 — apiClient 사용
 export async function registerMyCar(params: {
   payload: RegisterMyCarRequest;
-  accessToken: string;
 }): Promise<MyCar> {
   const response = await apiClient.post<ApiEnvelope<MyCar>>(
     '/api/v1/cars',
@@ -52,7 +51,7 @@ export async function registerMyCar(params: {
 }
 
 // 인증 필요 — apiClient 사용
-export async function fetchMyCars(accessToken: string): Promise<PrimaryCar[]> {
+export async function fetchMyCars(): Promise<PrimaryCar[]> {
   const response = await apiClient.get<ApiEnvelope<PrimaryCar[]>>(
     '/api/v1/cars',
   );

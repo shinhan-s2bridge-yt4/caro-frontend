@@ -10,8 +10,8 @@ type ProfileState = {
   primaryCar: PrimaryCar | null;
   isLoading: boolean;
   error: string | null;
-  loadProfile: (accessToken: string) => Promise<void>;
-  updateProfile: (accessToken: string, request: UpdateProfileRequest) => Promise<void>;
+  loadProfile: () => Promise<void>;
+  updateProfile: (request: UpdateProfileRequest) => Promise<void>;
   setProfile: (data: Partial<ProfileData>) => void;
   clearProfile: () => void;
 };
@@ -22,10 +22,10 @@ export const useProfileStore = create<ProfileState>((set) => ({
   primaryCar: null,
   isLoading: false,
   error: null,
-  loadProfile: async (accessToken: string) => {
+  loadProfile: async () => {
     set({ isLoading: true, error: null });
     try {
-      const data = await fetchProfile(accessToken);
+      const data = await fetchProfile();
       set({
         name: data.name,
         email: data.email,
@@ -39,10 +39,10 @@ export const useProfileStore = create<ProfileState>((set) => ({
       });
     }
   },
-  updateProfile: async (accessToken: string, request: UpdateProfileRequest) => {
+  updateProfile: async (request: UpdateProfileRequest) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await updateProfileApi(accessToken, request);
+      const data = await updateProfileApi(request);
       set({
         name: data.name,
         email: data.email,

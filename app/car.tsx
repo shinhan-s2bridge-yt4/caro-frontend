@@ -276,8 +276,8 @@ export default function CarScreen() {
   useEffect(() => {
     if (accessToken) {
       const defaultYearMonth = toYearMonth(currentYear, currentMonth);
-      fetchRecords({ yearMonth: defaultYearMonth, accessToken });
-      fetchSummary({ accessToken });
+      fetchRecords({ yearMonth: defaultYearMonth });
+      fetchSummary();
     }
   }, [accessToken]);
 
@@ -293,7 +293,7 @@ export default function CarScreen() {
     const newYearMonth = toYearMonth(pickedYear, pickedMonth);
     closeDatePicker();
     if (accessToken) {
-      fetchRecords({ yearMonth: newYearMonth, accessToken });
+      fetchRecords({ yearMonth: newYearMonth });
     }
   }, [pickedYear, pickedMonth, accessToken, fetchRecords, closeDatePicker]);
 
@@ -489,7 +489,7 @@ export default function CarScreen() {
                       setPickedMonth(today.getMonth() + 1);
                       const defaultYM = toYearMonth(today.getFullYear(), today.getMonth() + 1);
                       if (accessToken) {
-                        fetchRecords({ yearMonth: defaultYM, accessToken });
+                        fetchRecords({ yearMonth: defaultYM });
                       }
                     }}
                     accessibilityRole="button"
