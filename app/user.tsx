@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,12 +7,12 @@ import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { USER_MENU_ITEMS, type UserMenuKey } from '@/components/user/constants/menuItems';
 import { ProfileEditModal } from '@/components/user/modals/ProfileEditModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserDashboardData } from '@/hooks/user/useUserDashboardData';
 import { useUserProfileEdit } from '@/hooks/user/useUserProfileEdit';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useSignupDraftStore } from '@/stores/signupDraftStore';
 import { useMyCarStore } from '@/stores/myCarStore';
-import { fetchDashboard, type DashboardData } from '@/services/profileService';
 import { getTabRoute } from '@/utils/navigation';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
@@ -26,16 +26,7 @@ export default function UserScreen() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { name, email, primaryCar, loadProfile } = useProfileStore();
   const { cars, loadMyCars } = useMyCarStore();
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  
-  // API에서 프로필 데이터, 대시보드, 차량 목록 로드
-  useEffect(() => {
-    if (accessToken) {
-      loadProfile();
-      fetchDashboard().then(setDashboard).catch(() => {});
-      loadMyCars();
-    }
-  }, [accessToken, loadProfile, loadMyCars]);
+  const { dashboard } = useUserDashboardData({ accessToken, loadProfile, loadMyCars });
   
   // 화면 표시용 프로필 데이터
   const profileData = {
