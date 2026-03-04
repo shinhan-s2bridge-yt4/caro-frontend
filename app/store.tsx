@@ -1,12 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// 네이티브 전용 바코드 컴포넌트 - 웹에서는 텍스트 대체
-let Barcode: any = null;
-if (Platform.OS !== 'web') {
-  Barcode = require('react-native-barcode-svg').default;
-}
 import { useRouter } from 'expo-router';
 
 import { borderRadius, colors, typography } from '@/theme';
@@ -17,7 +11,7 @@ import { StoreMyPointCard } from '@/components/store/cards/StoreMyPointCard';
 import { StorePointHistoryCard } from '@/components/store/cards/StorePointHistoryCard';
 import { StoreProductCard } from '@/components/store/cards/StoreProductCard';
 import { OverlayModal } from '@/components/common/Modal/OverlayModal';
-import { StoreCouponUseModal } from '@/components/store/modals/StoreCouponUseModal';
+import { StoreCouponUseModal, type StoreBarcodeComponent } from '@/components/store/modals/StoreCouponUseModal';
 import {
   StoreCouponSection,
   StorePointHistorySection,
@@ -32,25 +26,36 @@ import {
   type MemberCouponDetail,
 } from '@/services/rewardService';
 import { getTabRoute } from '@/utils/navigation';
-import { formatPointNumber } from '@/utils/points';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 
 type StoreCategoryKey = string;
+type StoreTabId = 'store' | 'point' | 'coupon';
+
+function isStoreTabId(value: string): value is StoreTabId {
+  return value === 'store' || value === 'point' || value === 'coupon';
+}
+
+// 네이티브 전용 바코드 컴포넌트 - 웹에서는 텍스트 대체
+let Barcode: StoreBarcodeComponent = null;
+if (Platform.OS !== 'web') {
+  Barcode = require('react-native-barcode-svg').default as StoreBarcodeComponent;
+}
 
 export default function StoreScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
 
   const rewardTabs = useMemo(
-    () => [
-      { id: 'store', label: '스토어' },
-      { id: 'point', label: '포인트' },
-      { id: 'coupon', label: '보유쿠폰' },
-    ],
+    () =>
+      [
+        { id: 'store', label: '스토어' },
+        { id: 'point', label: '포인트' },
+        { id: 'coupon', label: '보유쿠폰' },
+      ] as const,
     [],
   );
-  const [selectedTab, setSelectedTab] = useState<string>(rewardTabs[0]?.id ?? 'store');
+  const [selectedTab, setSelectedTab] = useState<StoreTabId>('store');
   const [storeCategory, setStoreCategory] = useState<StoreCategoryKey>('ALL');
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(4);
   const [visibleCouponCount, setVisibleCouponCount] = useState(4);
@@ -182,7 +187,15 @@ export default function StoreScreen() {
               </Text>
             </View>
 
-            <CouponTab tabs={rewardTabs} selectedTab={selectedTab} onTabChange={setSelectedTab} />
+            <CouponTab
+              tabs={rewardTabs.map((tab) => ({ ...tab }))}
+              selectedTab={selectedTab}
+              onTabChange={(tabId) => {
+                if (isStoreTabId(tabId)) {
+                  setSelectedTab(tabId);
+                }
+              }}
+            />
 
             {selectedTab === 'store' ? (
               <StoreProductsSection

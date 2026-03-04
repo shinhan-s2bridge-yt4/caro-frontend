@@ -17,7 +17,7 @@ const FIXED_CATEGORY_KEYS = ['ALL', 'POPULAR', 'CHEAP'] as const;
 
 interface UseStoreScreenDataParams {
   accessToken: string | null;
-  selectedTab: string;
+  selectedTab: 'store' | 'point' | 'coupon';
   storeCategory: string;
 }
 

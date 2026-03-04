@@ -1,10 +1,24 @@
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import type { ComponentType } from 'react';
 import { borderRadius, colors, typography } from '@/theme';
 import { CompactCouponUsageGuide } from '@/components/store/CouponGuide';
 import type { MemberCoupon, MemberCouponDetail } from '@/services/rewardService';
 import { formatDateDotSeparated, formatDateKoreanWithUntil, getDaysRemaining } from '@/utils/date';
 import { toRewardImageUrl } from '@/utils/rewardImage';
 import XIcon from '@/assets/icons/x_icon.svg';
+
+export interface StoreBarcodeProps {
+  value: string;
+  format: string;
+  height: number;
+  maxWidth: number;
+  singleBarWidth: number;
+  lineColor: string;
+  backgroundColor: string;
+  onError?: (err: Error) => void;
+}
+
+export type StoreBarcodeComponent = ComponentType<StoreBarcodeProps> | null;
 
 interface StoreCouponUseModalProps {
   selectedCoupon: MemberCoupon | null;
@@ -14,7 +28,7 @@ interface StoreCouponUseModalProps {
   onClose: () => void;
   onSetBarcodeLarge: (value: boolean) => void;
   onSetUsageGuideExpanded: (value: boolean) => void;
-  BarcodeComponent: any;
+  BarcodeComponent: StoreBarcodeComponent;
 }
 
 export function StoreCouponUseModal({
