@@ -1,10 +1,11 @@
-import { Platform, Pressable, View, Text, Modal, ScrollView, Image } from 'react-native';
+import { Platform, Pressable, View, Text, ScrollView, Image } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import { ToggleButton, type ToggleOption, type ToggleValue } from '@/components/common/Button/ToggleButton';
 import { MainButton } from '@/components/common/Button/MainButton';
+import { HomeAttendanceRewardModal } from '@/components/home/modals/HomeAttendanceRewardModal';
 import { HomeBluetoothSettingsModal } from '@/components/home/modals/HomeBluetoothSettingsModal';
 import { HomeStopDrivingModal } from '@/components/home/modals/HomeStopDrivingModal';
 import { HomeAttendanceSection } from '@/components/home/sections/HomeAttendanceSection';
@@ -46,7 +47,6 @@ import HandIcon from '@/assets/icons/hand.svg';
 import PlayIcon from '@/assets/icons/play.svg';
 import PauseIcon from '@/assets/icons/pause.svg';
 import BCoinIcon from '@/assets/icons/bcoin.svg';
-import XIcon from '@/assets/icons/x_icon.svg';
 import PointIcon from '@/assets/icons/point.svg';
 import InfoIcon from '@/assets/icons/info.svg';
 import BCheckIcon from '@/assets/icons/bcheck.svg';
@@ -1179,122 +1179,12 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* 출석체크 보상 모달 */}
-      <Modal
+      <HomeAttendanceRewardModal
         visible={isAttendanceModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsAttendanceModalVisible(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 32,
-          }}
-        >
-          <View
-            style={{
-              width: '100%',
-              backgroundColor: colors.coolNeutral[10],
-              borderRadius: 20,
-              paddingHorizontal: 24,
-              paddingTop: 20,
-              paddingBottom: 24,
-              alignItems: 'center',
-            }}
-          >
-            {/* 닫기 버튼 */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="close-attendance-modal"
-              onPress={() => setIsAttendanceModalVisible(false)}
-              style={{ alignSelf: 'flex-end' }}
-            >
-              <XIcon width={24} height={24} />
-            </Pressable>
-
-            {/* 코인 이미지 */}
-            <Image
-              source={require('@/assets/icons/coin.gif')}
-              style={{ width: 146, height: 146 }}
-            />
-
-            {/* 보상 텍스트 */}
-            <View style={{ alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.h2Bold,
-                  color: colors.coolNeutral[80],
-                  textAlign: 'center',
-                }}
-              >
-                출석체크 보상{'\n'}{attendancePoints}P 당첨!
-              </Text>
-            </View>
-
-            {/* 연속 출석 정보 */}
-            <View
-              style={{
-                width: '100%',
-                backgroundColor: colors.background.default,
-                borderRadius: 12,
-                paddingVertical: 16,
-                paddingHorizontal: 20,
-                alignItems: 'center',
-                gap: 4,
-                marginBottom: 20,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Semibold,
-                  color: colors.primary[50],
-                }}
-              >
-                {attendanceStreak}일 연속 출석중!
-              </Text>
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body3Regular,
-                  color: colors.coolNeutral[40],
-                }}
-              >
-                너무 잘하고 있어요. 내일 또 만나요
-              </Text>
-            </View>
-
-            {/* 출석 완료 버튼 */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="attendance-complete"
-              onPress={() => setIsAttendanceModalVisible(false)}
-              style={{
-                width: '100%',
-                backgroundColor: colors.primary[50],
-                borderRadius: 12,
-                paddingVertical: 16,
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body1Bold,
-                  color: colors.coolNeutral[10],
-                }}
-              >
-                확인
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        attendancePoints={attendancePoints}
+        attendanceStreak={attendanceStreak}
+        onClose={() => setIsAttendanceModalVisible(false)}
+      />
 
       <HomeStopDrivingModal
         visible={isStopModalVisible}
