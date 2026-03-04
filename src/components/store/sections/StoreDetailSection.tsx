@@ -5,7 +5,6 @@ import { MainButton } from '@/components/common/Button/MainButton';
 import { OverlayModal } from '@/components/common/Modal/OverlayModal';
 import { StoreDetailCouponGuide } from '@/components/store/CouponGuide';
 import { Toast } from '@/components/common/Toast';
-import { useMemberPoints } from '@/hooks/store/useMemberPoints';
 import { exchangeCoupon, type RewardCoupon } from '@/services/rewardService';
 import { formatPointNumber, formatPointTotal } from '@/utils/points';
 import { toRewardImageUrl } from '@/utils/rewardImage';
@@ -16,18 +15,19 @@ import Coffee1Icon from '@/assets/icons/coffee1.svg';
 
 interface StoreDetailSectionProps {
   product: RewardCoupon;
-  accessToken: string | null;
+  userPoint: number;
+  onReloadPoints: () => Promise<unknown>;
   onBack: () => void;
   onExchanged?: () => void;
 }
 
 export function StoreDetailSection({
   product,
-  accessToken,
+  userPoint,
+  onReloadPoints,
   onBack,
   onExchanged,
 }: StoreDetailSectionProps) {
-  const { availablePoints: userPoint, reload: reloadMemberPoints } = useMemberPoints({ accessToken });
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [isExchanging, setIsExchanging] = useState(false);
@@ -40,7 +40,7 @@ export function StoreDetailSection({
       await exchangeCoupon(product.id);
       setIsExchangeModalOpen(false);
       setIsToastVisible(true);
-      await reloadMemberPoints();
+      await onReloadPoints();
       onExchanged?.();
     } catch (err: any) {
       setIsExchangeModalOpen(false);

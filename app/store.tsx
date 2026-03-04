@@ -77,6 +77,7 @@ export default function StoreScreen() {
     couponTotalCount,
     pointTotal,
     pointBreakdown,
+    reloadMemberPoints,
     fetchCouponDetailById,
   } = useStoreScreenData({
     accessToken,
@@ -151,7 +152,8 @@ export default function StoreScreen() {
       {selectedProduct ? (
         <StoreDetailSection
           product={selectedProduct}
-          accessToken={accessToken}
+          userPoint={pointTotal}
+          onReloadPoints={reloadMemberPoints}
           onBack={handleCloseDetail}
           onExchanged={() => setSelectedTab('coupon')}
         />

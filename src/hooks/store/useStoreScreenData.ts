@@ -26,7 +26,7 @@ export function useStoreScreenData({
   selectedTab,
   storeCategory,
 }: UseStoreScreenDataParams) {
-  const { memberPoints } = useMemberPoints({ accessToken });
+  const { memberPoints, reload: reloadMemberPoints } = useMemberPoints({ accessToken });
 
   const [apiCategories, setApiCategories] = useState<RewardCategory[]>([]);
   const [rewardCoupons, setRewardCoupons] = useState<RewardCoupon[]>([]);
@@ -129,6 +129,7 @@ export function useStoreScreenData({
     couponTotalCount,
     pointTotal,
     pointBreakdown,
+    reloadMemberPoints,
     fetchCouponDetailById,
   };
 }
