@@ -13,6 +13,7 @@ import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
 import CouponTab from '@/components/common/Category/CouponTab';
 import CategoryTab from '@/components/common/Category/CategoryTab';
+import { ContentState } from '@/components/common/State/ContentState';
 import { useAuthStore } from '@/stores/authStore';
 import {
   fetchRewardCategories,
@@ -34,6 +35,8 @@ import {
   formatDateOnly,
 } from '@/utils/date';
 import { getTabRoute } from '@/utils/navigation';
+import { formatPointDelta, formatPointNumber, formatPointTotal } from '@/utils/points';
+import { toRewardImageUrl } from '@/utils/rewardImage';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import DownIcon from '@/assets/icons/DownIcon.svg';
@@ -65,8 +68,6 @@ const FIXED_CATEGORY_KEYS = FIXED_CATEGORIES.map((c) => c.key as string);
 
 type StoreCategoryKey = string;
 
-const IMAGE_BASE_URL = 'https://api.caro.today';
-
 // 상품 카드 컴포넌트 (API 응답 기반)
 function ProductCard({ product, onPress }: { product: RewardCoupon; onPress?: () => void }) {
   return (
@@ -93,7 +94,7 @@ function ProductCard({ product, onPress }: { product: RewardCoupon; onPress?: ()
       >
         {product.imageUrl ? (
           <Image
-            source={{ uri: `${IMAGE_BASE_URL}${product.imageUrl}` }}
+            source={{ uri: toRewardImageUrl(product.imageUrl) }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
@@ -136,7 +137,7 @@ function ProductCard({ product, onPress }: { product: RewardCoupon; onPress?: ()
               color: colors.coolNeutral[60],
             }}
           >
-            {product.requiredPoints.toLocaleString('ko-KR')}
+            {formatPointNumber(product.requiredPoints)}
           </Text>
         </View>
       </View>
@@ -149,19 +150,10 @@ function ProductCard({ product, onPress }: { product: RewardCoupon; onPress?: ()
           color: colors.coolNeutral[40],
         }}
       >
-        {product.redeemCount.toLocaleString('ko-KR')}명이 받아감
+        {formatPointNumber(product.redeemCount)}명이 받아감
       </Text>
     </Pressable>
   );
-}
-
-function formatPointAmount(amount: number) {
-  const abs = Math.abs(amount).toLocaleString('ko-KR');
-  return `${amount >= 0 ? '+ ' : '- '}${abs} P`;
-}
-
-function formatPointTotal(amount: number) {
-  return `${amount.toLocaleString('ko-KR')}`;
 }
 
 // 남은 일수 계산 (ISO 날짜 문자열 지원)
@@ -248,7 +240,7 @@ function CouponCard({ coupon, onUse }: { coupon: MemberCoupon; onUse?: () => voi
                 color: colors.coolNeutral[40],
               }}
             >
-              {coupon.usedPoints.toLocaleString('ko-KR')}
+              {formatPointNumber(coupon.usedPoints)}
             </Text>
           </View>
 
@@ -344,7 +336,7 @@ function PointHistoryCard({ item }: { item: PointHistory }) {
               color: amountColor,
             }}
           >
-            {formatPointAmount(item.pointChange)}
+            {formatPointDelta(item.pointChange)}
           </Text>
         </View>
 
@@ -439,7 +431,7 @@ function PointCard({
                 color: colors.coolNeutral[10],
               }}
             >
-              {formatPointTotal(pointTotal)}
+              {formatPointNumber(pointTotal)}
             </Text>
           </View>
         )}
@@ -463,7 +455,7 @@ function PointCard({
                 출석체크 포인트
               </Text>
               <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.coolNeutral[80] }}>
-                {breakdown.attendance.toLocaleString('ko-KR')}P
+                {formatPointNumber(breakdown.attendance)}P
               </Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -471,7 +463,7 @@ function PointCard({
                 운행기록 포인트
               </Text>
               <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.coolNeutral[80] }}>
-                {breakdown.driving.toLocaleString('ko-KR')}P
+                {formatPointNumber(breakdown.driving)}P
               </Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -479,7 +471,7 @@ function PointCard({
                 나의 차감 포인트
               </Text>
               <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.body3Bold, color: colors.red[40] }}>
-                -{breakdown.used.toLocaleString('ko-KR')}P
+                -{formatPointNumber(breakdown.used)}P
               </Text>
             </View>
           </View>
@@ -493,7 +485,7 @@ function PointCard({
               현재 포인트
             </Text>
             <Text style={{ fontFamily: typography.fontFamily.pretendard, ...typography.styles.h1Bold, color: colors.primary[50] }}>
-              {pointTotal.toLocaleString('ko-KR')} P
+              {formatPointTotal(pointTotal)}
             </Text>
           </View>
         </View>
@@ -1177,29 +1169,9 @@ export default function StoreScreen() {
                   {/* 상품 그리드 */}
                   <View style={{ paddingHorizontal: 20, gap: 16 }}>
                     {couponsLoading ? (
-                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body2Semibold,
-                            color: colors.coolNeutral[40],
-                          }}
-                        >
-                          불러오는 중...
-                        </Text>
-                      </View>
+                      <ContentState variant="loading" message="불러오는 중..." />
                     ) : rewardCoupons.length === 0 ? (
-                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                        <Text
-                          style={{
-                            fontFamily: typography.fontFamily.pretendard,
-                            ...typography.styles.body2Semibold,
-                            color: colors.coolNeutral[40],
-                          }}
-                        >
-                          상품이 없습니다
-                        </Text>
-                      </View>
+                      <ContentState variant="empty" message="상품이 없습니다" />
                     ) : (
                       /* 2열 그리드로 상품 표시 */
                       Array.from({ length: Math.ceil(rewardCoupons.length / 2) }).map((_, rowIndex) => {
@@ -1279,9 +1251,13 @@ export default function StoreScreen() {
 
                 {/* 히스토리 카드들 */}
                 <View style={{ gap: 12 }}>
-                  {pointHistories.slice(0, visibleHistoryCount).map((item, index) => (
-                    <PointHistoryCard key={`${item.date}-${index}`} item={item} />
-                  ))}
+                  {pointHistories.length === 0 ? (
+                    <ContentState variant="empty" message="포인트 내역이 없습니다" />
+                  ) : (
+                    pointHistories.slice(0, visibleHistoryCount).map((item, index) => (
+                      <PointHistoryCard key={`${item.date}-${index}`} item={item} />
+                    ))
+                  )}
                 </View>
 
                 {/* 더보기 */}
@@ -1344,13 +1320,17 @@ export default function StoreScreen() {
 
                 {/* 쿠폰 카드들 */}
                 <View style={{ gap: 12 }}>
-                  {memberCoupons.slice(0, visibleCouponCount).map((coupon) => (
-                    <CouponCard
-                      key={coupon.id}
-                      coupon={coupon}
-                      onUse={() => handleCouponUse(coupon)}
-                    />
-                  ))}
+                  {memberCoupons.length === 0 ? (
+                    <ContentState variant="empty" message="보유 쿠폰이 없습니다" />
+                  ) : (
+                    memberCoupons.slice(0, visibleCouponCount).map((coupon) => (
+                      <CouponCard
+                        key={coupon.id}
+                        coupon={coupon}
+                        onUse={() => handleCouponUse(coupon)}
+                      />
+                    ))
+                  )}
                 </View>
 
                 {/* 더보기 */}

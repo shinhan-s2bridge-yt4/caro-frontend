@@ -4,10 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
+import { MainButton } from '@/components/common/Button/MainButton';
 import { Toast } from '@/components/common/Toast';
 import { useAuthStore } from '@/stores/authStore';
 import { exchangeCoupon, fetchMemberPoints } from '@/services/rewardService';
 import { getTabRoute } from '@/utils/navigation';
+import { formatPointNumber, formatPointTotal } from '@/utils/points';
+import { toRewardImageUrl } from '@/utils/rewardImage';
 
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import PointIcon from '@/assets/icons/point.svg';
@@ -18,8 +21,6 @@ import OneIcon from '@/assets/icons/one.svg';
 import TwoIcon from '@/assets/icons/two.svg';
 import ThreeIcon from '@/assets/icons/three.svg';
 import FourIcon from '@/assets/icons/four.svg';
-
-const IMAGE_BASE_URL = 'https://api.caro.today';
 
 // 아코디언 섹션 컴포넌트
 function AccordionSection({
@@ -219,7 +220,7 @@ export default function StoreDetailScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  {productPrice.toLocaleString('ko-KR')} P 를
+                  {formatPointTotal(productPrice)}를
                 </Text>
               </View>
 
@@ -243,7 +244,7 @@ export default function StoreDetailScreen() {
                   lineHeight: 22,
                 }}
               >
-                {productPrice.toLocaleString('ko-KR')}P가 차감되고 쿠폰이 바로 지급돼요.{'\n'}
+                {formatPointNumber(productPrice)}P가 차감되고 쿠폰이 바로 지급돼요.{'\n'}
                 교환 후에는 취소가 불가능해요.
               </Text>
             </View>
@@ -333,7 +334,7 @@ export default function StoreDetailScreen() {
                 color: colors.coolNeutral[60],
               }}
             >
-              {userPoint.toLocaleString('ko-KR')} P
+              {formatPointTotal(userPoint)}
             </Text>
           </View>
         </View>
@@ -350,7 +351,7 @@ export default function StoreDetailScreen() {
           >
             {productImageUrl ? (
               <Image
-                source={{ uri: `${IMAGE_BASE_URL}${productImageUrl}` }}
+                source={{ uri: toRewardImageUrl(productImageUrl) }}
                 style={{ width: 257, height: 257 }}
                 resizeMode="contain"
               />
@@ -396,7 +397,7 @@ export default function StoreDetailScreen() {
                     color: colors.coolNeutral[90],
                   }}
                 >
-                  {productPrice.toLocaleString('ko-KR')} P
+                  {formatPointTotal(productPrice)}
                 </Text>
               </View>
             </View>
@@ -404,28 +405,21 @@ export default function StoreDetailScreen() {
             {/* 버튼 + 아코디언 영역 */}
             <View style={{ gap: 47 }}>
           {/* 교환 버튼 */}
-          <Pressable
+          <MainButton
+            label={hasEnoughPoints ? '포인트로 교환하기' : '포인트가 부족해요'}
             disabled={!hasEnoughPoints}
-            style={{
+            alwaysPrimary={hasEnoughPoints}
+            onPress={() => setIsExchangeModalOpen(true)}
+            containerStyle={{
               width: '100%',
               height: 52,
-              borderRadius: borderRadius.md,
               backgroundColor: hasEnoughPoints ? colors.primary[50] : colors.coolNeutral[20],
-              justifyContent: 'center',
-              alignItems: 'center',
             }}
-            onPress={() => setIsExchangeModalOpen(true)}
-          >
-            <Text
-              style={{
-                fontFamily: typography.fontFamily.pretendard,
-                ...typography.styles.body1Bold,
-                color: hasEnoughPoints ? colors.background.default : colors.coolNeutral[40],
-              }}
-            >
-              {hasEnoughPoints ? '포인트로 교환하기' : '포인트가 부족해요'}
-            </Text>
-          </Pressable>
+            labelStyle={{
+              ...typography.styles.body1Bold,
+              color: hasEnoughPoints ? colors.background.default : colors.coolNeutral[40],
+            }}
+          />
 
           {/* 아코디언 섹션들 */}
           <View style={{ gap: 24 }}>
