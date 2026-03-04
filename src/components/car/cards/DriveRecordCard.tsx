@@ -2,23 +2,11 @@ import { Pressable, Text, View } from 'react-native';
 import { borderRadius, colors, typography } from '@/theme';
 import type { DrivingRecord } from '@/types/drivingRecord';
 import { formatDateWithDay, formatTimeHHMM } from '@/utils/date';
+import { formatCarModel, formatDistanceLabel, formatEarnedPointsLabel } from '@/utils/driving';
 import GCarIcon from '@/assets/icons/gcar.svg';
 import PointIcon from '@/assets/icons/point.svg';
 
 const TAG_MIN_WIDTH = 44;
-
-function formatDistanceLabel(distanceKm: number): string {
-  return `${distanceKm.toFixed(1)} km`;
-}
-
-function formatEarnedPointsLabel(points: number): string {
-  return `+ ${points.toLocaleString()}`;
-}
-
-function formatCarModel(brandName: string, modelName: string, variantName: string): string {
-  const parts = [brandName, modelName, variantName].filter(Boolean);
-  return parts.join(' ');
-}
 
 function Tag({ label }: { label: '출발' | '도착' }) {
   return (
