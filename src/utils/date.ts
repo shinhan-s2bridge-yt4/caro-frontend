@@ -65,3 +65,12 @@ export function formatDateDotSeparated(dateStr: string): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year} . ${month} . ${day}`;
 }
+
+export function getDaysRemaining(expiredAt: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiredAt);
+  expiry.setHours(0, 0, 0, 0);
+  const diffTime = expiry.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}

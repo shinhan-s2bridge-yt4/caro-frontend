@@ -2,18 +2,9 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { borderRadius, colors, typography } from '@/theme';
 import { CompactCouponUsageGuide } from '@/components/store/CouponGuide';
 import type { MemberCoupon, MemberCouponDetail } from '@/services/rewardService';
-import { formatDateDotSeparated, formatDateKoreanWithUntil } from '@/utils/date';
+import { formatDateDotSeparated, formatDateKoreanWithUntil, getDaysRemaining } from '@/utils/date';
 import { toRewardImageUrl } from '@/utils/rewardImage';
 import XIcon from '@/assets/icons/x_icon.svg';
-
-function getDaysRemaining(expiredAt: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiredAt);
-  expiry.setHours(0, 0, 0, 0);
-  const diffTime = expiry.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 interface StoreCouponUseModalProps {
   selectedCoupon: MemberCoupon | null;
