@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { borderRadius, colors, typography } from '@/theme';
 import { NavigationBar } from '@/components/common/Bar/NavigationBar';
-import { MainButton } from '@/components/common/Button/MainButton';
+import { CarDatePickerModal } from '@/components/car/modals/CarDatePickerModal';
 import { ContentState } from '@/components/common/State/ContentState';
 import { useAuthStore } from '@/stores/authStore';
 import { useDrivingRecordStore } from '@/stores/drivingRecordStore';
@@ -22,15 +22,9 @@ import { getTabRoute } from '@/utils/navigation';
 import ArrowLeftIcon from '@/assets/icons/arrow-left.svg';
 import SearchIcon from '@/assets/icons/search.svg';
 import GCarIcon from '@/assets/icons/gcar.svg';
-import XIcon from '@/assets/icons/x_icon.svg';
 import PointIcon from '@/assets/icons/point.svg';
 
 const TAG_MIN_WIDTH = 44;
-const DATE_WHEEL_ITEM_HEIGHT = 44;
-const DATE_WHEEL_HEIGHT = 220;
-const DATE_WHEEL_PADDING = (DATE_WHEEL_HEIGHT - DATE_WHEEL_ITEM_HEIGHT) / 2;
-const DATE_PICKER_YEARS: number[] = [2024, 2025, 2026, 2027, 2028];
-const DATE_PICKER_MONTHS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
 
 function formatDistanceLabel(distanceKm: number): string {
   return `${distanceKm.toFixed(1)} km`;
@@ -267,11 +261,6 @@ export default function CarScreen() {
   const currentMonth = now.getMonth() + 1;
   const [pickedYear, setPickedYear] = useState<number>(currentYear);
   const [pickedMonth, setPickedMonth] = useState<number>(currentMonth);
-
-  const yearListRef = useRef<FlatList<number> | null>(null);
-  const monthListRef = useRef<FlatList<number> | null>(null);
-  const yearIdxRef = useRef<number>(Math.max(0, DATE_PICKER_YEARS.indexOf(pickedYear)));
-  const monthIdxRef = useRef<number>(Math.max(0, DATE_PICKER_MONTHS.indexOf(pickedMonth)));
 
   // 컴포넌트 마운트 시 현재 년월 기준으로 데이터 로드
   useEffect(() => {
@@ -520,226 +509,15 @@ export default function CarScreen() {
         </View>
       </ScrollView>
 
-      {/* 날짜 선택 모달 */}
-      <Modal
+      <CarDatePickerModal
         visible={isDatePickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closeDatePicker}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.32)', justifyContent: 'flex-end' }}>
-          <Pressable
-            onPress={closeDatePicker}
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
-            accessibilityRole="button"
-            accessibilityLabel="dismiss-date-picker"
-          />
-
-          <View
-            style={{
-              width: '100%',
-              backgroundColor: colors.background.default,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              paddingTop: 18,
-              paddingBottom: 24,
-              paddingHorizontal: 20,
-              gap: 16,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text
-                style={{
-                  fontFamily: typography.fontFamily.pretendard,
-                  ...typography.styles.body1Semibold,
-                  color: colors.coolNeutral[80],
-                }}
-              >
-                날짜 선택
-              </Text>
-              <Pressable
-                onPress={closeDatePicker}
-                accessibilityRole="button"
-                accessibilityLabel="close-date-picker"
-                style={{ alignItems: 'center', justifyContent: 'center' }}
-              >
-                <XIcon width={24} height={24} />
-              </Pressable>
-            </View>
-
-            <View style={{ gap: 24 }}>
-              <View
-                style={{
-                  width: '100%',
-                  borderRadius: borderRadius.lg,
-                  backgroundColor: colors.coolNeutral[10],
-                  borderWidth: 1,
-                  borderColor: colors.coolNeutral[20],
-                  paddingVertical: 16,
-                  paddingHorizontal: 12,
-                }}
-              >
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  {/* Year */}
-                  <View style={{ flex: 1, position: 'relative' }}>
-                    {/* 중앙 선택 영역 고정 하이라이트 */}
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        top: DATE_WHEEL_PADDING,
-                        height: DATE_WHEEL_ITEM_HEIGHT,
-                        borderRadius: borderRadius.md,
-                        backgroundColor: colors.background.default,
-                      }}
-                    />
-                    <FlatList
-                      ref={(r) => {
-                        yearListRef.current = r;
-                      }}
-                      data={DATE_PICKER_YEARS}
-                      keyExtractor={(item) => `y-${item}`}
-                      showsVerticalScrollIndicator={false}
-                      initialScrollIndex={Math.max(0, DATE_PICKER_YEARS.indexOf(pickedYear))}
-                      initialNumToRender={DATE_PICKER_YEARS.length}
-                      snapToInterval={DATE_WHEEL_ITEM_HEIGHT}
-                      decelerationRate="fast"
-                      contentContainerStyle={{ paddingVertical: DATE_WHEEL_PADDING }}
-                      getItemLayout={(_, index) => ({
-                        length: DATE_WHEEL_ITEM_HEIGHT,
-                        offset: DATE_WHEEL_ITEM_HEIGHT * index,
-                        index,
-                      })}
-                      style={{ height: DATE_WHEEL_HEIGHT }}
-                      onScrollToIndexFailed={() => {}}
-                      scrollEventThrottle={16}
-                      onScroll={(e) => {
-                        const idx = Math.round(e.nativeEvent.contentOffset.y / DATE_WHEEL_ITEM_HEIGHT);
-                        if (idx === yearIdxRef.current) return;
-                        const y = DATE_PICKER_YEARS[idx];
-                        if (!y) return;
-                        yearIdxRef.current = idx;
-                        setPickedYear(y);
-                      }}
-                      renderItem={({ item, index }) => {
-                        const selected = item === pickedYear;
-                        return (
-                          <Pressable
-                            onPress={() => {
-                              setPickedYear(item);
-                              yearListRef.current?.scrollToIndex({ index, animated: true });
-                            }}
-                            style={{
-                              height: DATE_WHEEL_ITEM_HEIGHT,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: borderRadius.md,
-                              backgroundColor: 'transparent',
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Bold,
-                                color: selected ? colors.primary[50] : colors.coolNeutral[40],
-                              }}
-                            >
-                              {item}년
-                            </Text>
-                          </Pressable>
-                        );
-                      }}
-                    />
-                  </View>
-
-                  {/* Month */}
-                  <View style={{ flex: 1, position: 'relative' }}>
-                    {/* 중앙 선택 영역 고정 하이라이트 */}
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        top: DATE_WHEEL_PADDING,
-                        height: DATE_WHEEL_ITEM_HEIGHT,
-                        borderRadius: borderRadius.md,
-                        backgroundColor: colors.background.default,
-                      }}
-                    />
-                    <FlatList
-                      ref={(r) => {
-                        monthListRef.current = r;
-                      }}
-                      data={DATE_PICKER_MONTHS}
-                      keyExtractor={(item) => `m-${item}`}
-                      showsVerticalScrollIndicator={false}
-                      initialScrollIndex={Math.max(0, DATE_PICKER_MONTHS.indexOf(pickedMonth))}
-                      initialNumToRender={DATE_PICKER_MONTHS.length}
-                      snapToInterval={DATE_WHEEL_ITEM_HEIGHT}
-                      decelerationRate="fast"
-                      contentContainerStyle={{ paddingVertical: DATE_WHEEL_PADDING }}
-                      getItemLayout={(_, index) => ({
-                        length: DATE_WHEEL_ITEM_HEIGHT,
-                        offset: DATE_WHEEL_ITEM_HEIGHT * index,
-                        index,
-                      })}
-                      style={{ height: DATE_WHEEL_HEIGHT }}
-                      onScrollToIndexFailed={() => {}}
-                      scrollEventThrottle={16}
-                      onScroll={(e) => {
-                        const idx = Math.round(e.nativeEvent.contentOffset.y / DATE_WHEEL_ITEM_HEIGHT);
-                        if (idx === monthIdxRef.current) return;
-                        const m = DATE_PICKER_MONTHS[idx];
-                        if (!m) return;
-                        monthIdxRef.current = idx;
-                        setPickedMonth(m);
-                      }}
-                      renderItem={({ item, index }) => {
-                        const selected = item === pickedMonth;
-                        return (
-                          <Pressable
-                            onPress={() => {
-                              setPickedMonth(item);
-                              monthListRef.current?.scrollToIndex({ index, animated: true });
-                            }}
-                            style={{
-                              height: DATE_WHEEL_ITEM_HEIGHT,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: borderRadius.md,
-                              backgroundColor: 'transparent',
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontFamily: typography.fontFamily.pretendard,
-                                ...typography.styles.body2Bold,
-                                color: selected ? colors.primary[50] : colors.coolNeutral[40],
-                              }}
-                            >
-                              {item}월
-                            </Text>
-                          </Pressable>
-                        );
-                      }}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <MainButton
-                label={`${pickedYear}년 ${pickedMonth}월 선택`}
-                alwaysPrimary
-                onPress={applyDatePicker}
-                containerStyle={{ width: '100%' }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        pickedYear={pickedYear}
+        pickedMonth={pickedMonth}
+        onClose={closeDatePicker}
+        onSetPickedYear={setPickedYear}
+        onSetPickedMonth={setPickedMonth}
+        onConfirm={applyDatePicker}
+      />
 
       <View style={{ width: '100%', backgroundColor: colors.coolNeutral[10] }}>
         <NavigationBar
