@@ -188,14 +188,23 @@ export default function CarDetailScreen() {
   const { accessToken } = useAuthStore();
   const { primaryCar, loadProfile } = useProfileStore();
 
-  const drivingRecordId = Number(params.drivingRecordId);
+  const rawDrivingRecordId = Array.isArray(params.drivingRecordId)
+    ? params.drivingRecordId[0]
+    : params.drivingRecordId;
+  const drivingRecordId = Number(rawDrivingRecordId);
+  const hasValidDrivingRecordId =
+    Number.isFinite(drivingRecordId) && drivingRecordId > 0;
 
   const [detail, setDetail] = useState<DrivingRecordDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const fetchDetail = useCallback(async () => {
-    if (!drivingRecordId) return;
+    if (!hasValidDrivingRecordId) {
+      setError(true);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(false);
     try {
@@ -207,7 +216,7 @@ export default function CarDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [drivingRecordId]);
+  }, [drivingRecordId, hasValidDrivingRecordId]);
 
   useEffect(() => {
     fetchDetail();
