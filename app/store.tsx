@@ -16,15 +16,9 @@ import CategoryTab from '@/components/common/Category/CategoryTab';
 import { OverlayModal } from '@/components/common/Modal/OverlayModal';
 import { ContentState } from '@/components/common/State/ContentState';
 import { CompactCouponUsageGuide } from '@/components/store/CouponGuide';
-import { useMemberPoints } from '@/hooks/store/useMemberPoints';
+import { useStoreScreenData } from '@/hooks/store/useStoreScreenData';
 import { useAuthStore } from '@/stores/authStore';
 import {
-  fetchRewardCategories,
-  fetchRewardCoupons,
-  fetchPointHistory,
-  fetchMemberCoupons,
-  fetchMemberCouponDetail,
-  type RewardCategory,
   type RewardCoupon,
   type PointHistory,
   type MemberCoupon,
@@ -54,16 +48,6 @@ import RcouponIcon from '@/assets/icons/rcoupon.svg';
 import WupIcon from '@/assets/icons/wup.svg';
 
 const SCREEN_MAX_WIDTH = 375;
-
-// 고정 카테고리 (정렬 기준 sort 파라미터에 매핑)
-const FIXED_CATEGORIES = [
-  { key: 'ALL', label: '전체' },
-  { key: 'POPULAR', label: '인기' },
-  { key: 'CHEAP', label: '할인 높은 순' },
-] as const;
-
-// 고정 카테고리 key 목록 (sort 파라미터로 사용되는 값)
-const FIXED_CATEGORY_KEYS = FIXED_CATEGORIES.map((c) => c.key as string);
 
 type StoreCategoryKey = string;
 
@@ -497,7 +481,6 @@ export default function StoreScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { accessToken } = useAuthStore();
-  const { memberPoints } = useMemberPoints({ accessToken });
 
   const rewardTabs = useMemo(
     () => [
@@ -522,87 +505,25 @@ export default function StoreScreen() {
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [isUsageGuideExpanded, setIsUsageGuideExpanded] = useState(false);
   const [isBarcodeLarge, setIsBarcodeLarge] = useState(false);
-  const [apiCategories, setApiCategories] = useState<RewardCategory[]>([]);
-  const [rewardCoupons, setRewardCoupons] = useState<RewardCoupon[]>([]);
-  const [couponsLoading, setCouponsLoading] = useState(false);
-  const [pointHistories, setPointHistories] = useState<PointHistory[]>([]);
-  const [historyTotalCount, setHistoryTotalCount] = useState(0);
-  const [memberCoupons, setMemberCoupons] = useState<MemberCoupon[]>([]);
-  const [couponTotalCount, setCouponTotalCount] = useState(0);
   const [couponDetail, setCouponDetail] = useState<MemberCouponDetail | null>(null);
   const [isPointCardExpanded, setIsPointCardExpanded] = useState(false);
 
-  // API에서 리워드 카테고리 가져오기
-  useEffect(() => {
-    fetchRewardCategories()
-      .then((data) => setApiCategories(data))
-      .catch((err) => console.warn('카테고리 조회 실패:', err));
-  }, []);
-
-  // 고정 카테고리 + API 카테고리 결합
-  const storeCategories = useMemo(() => {
-    const fixed = FIXED_CATEGORIES.map((c) => ({ key: c.key, label: c.label }));
-    const dynamic = apiCategories.map((c) => ({
-      key: c.category,
-      label: c.categoryLabel,
-    }));
-    return [...fixed, ...dynamic];
-  }, [apiCategories]);
-
-  // 카테고리/정렬 변경 시 쿠폰 목록 API 호출
-  useEffect(() => {
-    const isFixedCategory = FIXED_CATEGORY_KEYS.includes(storeCategory);
-    const params = isFixedCategory
-      ? { sort: storeCategory, size: 20 }
-      : { category: storeCategory, size: 20 };
-
-    setCouponsLoading(true);
-    fetchRewardCoupons(params)
-      .then((data) => setRewardCoupons(data.rewardCoupons))
-      .catch((err) => {
-        console.warn('쿠폰 목록 조회 실패:', err);
-        setRewardCoupons([]);
-      })
-      .finally(() => setCouponsLoading(false));
-  }, [storeCategory]);
-
-  const pointTotal = memberPoints?.availablePoints ?? 0;
-
-  const pointBreakdown = useMemo(() => ({
-    attendance: memberPoints?.totalAttendancePoints ?? 0,
-    driving: memberPoints?.totalDrivingPoints ?? 0,
-    used: memberPoints?.totalUsedPoints ?? 0,
-  }), [memberPoints]);
-
-  // 포인트 이력 API 호출 (모든 탭에서 breakdown 계산에 필요)
-  useEffect(() => {
-    fetchPointHistory()
-      .then((data) => {
-        setPointHistories(data.histories);
-        setHistoryTotalCount(data.totalCount);
-      })
-      .catch((err) => {
-        console.warn('포인트 이력 조회 실패:', err);
-        setPointHistories([]);
-        setHistoryTotalCount(0);
-      });
-  }, []);
-
-  // 보유쿠폰 API 호출
-  useEffect(() => {
-    if (selectedTab === 'coupon') {
-      fetchMemberCoupons()
-        .then((data) => {
-          setMemberCoupons(data.coupons);
-          setCouponTotalCount(data.totalCount);
-        })
-        .catch((err) => {
-          console.warn('보유쿠폰 조회 실패:', err);
-          setMemberCoupons([]);
-          setCouponTotalCount(0);
-        });
-    }
-  }, [selectedTab]);
+  const {
+    storeCategories,
+    rewardCoupons,
+    couponsLoading,
+    pointHistories,
+    historyTotalCount,
+    memberCoupons,
+    couponTotalCount,
+    pointTotal,
+    pointBreakdown,
+    fetchCouponDetailById,
+  } = useStoreScreenData({
+    accessToken,
+    selectedTab,
+    storeCategory,
+  });
 
   // 탭별 배경색
   const backgroundColor = selectedTab === 'point' ? colors.coolNeutral[10] : colors.background.default;
@@ -613,12 +534,8 @@ export default function StoreScreen() {
     setIsCouponModalOpen(true);
     setIsUsageGuideExpanded(false);
 
-    try {
-      const detail = await fetchMemberCouponDetail(coupon.id);
-      setCouponDetail(detail);
-    } catch (err) {
-      console.warn('쿠폰 상세 조회 실패:', err);
-    }
+    const detail = await fetchCouponDetailById(coupon.id);
+    setCouponDetail(detail);
   };
 
   const closeCouponModal = () => {
@@ -688,7 +605,7 @@ export default function StoreScreen() {
                     {/* 브랜드 로고 */}
                     {couponDetail?.imageUrl ? (
                       <Image
-                        source={{ uri: `https://api.caro.today${couponDetail.imageUrl}` }}
+                        source={{ uri: toRewardImageUrl(couponDetail.imageUrl) }}
                         style={{ width: 80, height: 80, borderRadius: 40 }}
                         resizeMode="cover"
                       />
